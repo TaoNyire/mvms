@@ -16,7 +16,7 @@ class SkillController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate(['name' => 'required|unique:skills,name']);
+        $data = $request->validate(['name' => 'required|unique:skills,name','desc' => 'nullable|string']);
         $skill = Skill::create($data);
         return response()->json($skill, 201);
     }
