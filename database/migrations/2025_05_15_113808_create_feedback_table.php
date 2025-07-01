@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::create('feedback', function (Blueprint $table) {
             $table->id();
             $table->foreignId('application_id')->constrained()->onDelete('cascade');
+            $table->enum('from_type', ['org', 'volunteer'])->default('org');
+            $table->unsignedBigInteger('from_user_id')->nullable();
             $table->tinyInteger('rating')->nullable(); // 1–5 stars
             $table->text('comments')->nullable();
             $table->timestamps();

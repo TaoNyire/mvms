@@ -6,15 +6,18 @@ use Illuminate\Http\Request;
 use App\Models\Opportunity;
 use App\Models\Skill;
 use App\Models\User;
+use App\Models\Application;
 
 class OpportunityMatchingController extends Controller
 {
     /**
      * Public API: List all opportunities with filters (skill, location, org, date)
+     * Excludes opportunities that are in_progress, completed, or already full.
      */
     public function publicIndex(Request $request)
     {
-        $query = Opportunity::with(['skills', 'organization.organizationProfile']);
+        $query = Opportunity::with(['skills', 'organization.organizationProfile'])
+            ->whereNotIn('status', ['in_progress', 'completed']);
 
         // Filter by skill
         if ($request->filled('skill_id')) {
@@ -42,14 +45,33 @@ class OpportunityMatchingController extends Controller
                 });
         }
 
-        $opportunities = $query->latest()->paginate(20);
+        // Exclude full opportunities
+        $opportunities = $query->get()->filter(function ($opp) {
+            $acceptedCount = Application::where('opportunity_id', $opp->id)
+                ->where('status', 'accepted')
+                ->count();
+            return $acceptedCount < $opp->volunteers_needed;
+        });
 
-        return response()->json($opportunities);
+        // Paginate manually since we're filtering after get()
+        $perPage = 20;
+        $page = request('page', 1);
+        $paginated = $opportunities->slice(($page - 1) * $perPage, $perPage)->values();
+
+        return response()->json([
+            'data' => $paginated,
+            'total' => $opportunities->count(),
+            'per_page' => $perPage,
+            'current_page' => $page,
+        ]);
     }
 
     /**
      * Volunteer API: List recommended opportunities (matching engine)
      * - Skill, location, simple scoring and ranking
+     * - Only return opportunities with score >= 70
+     * - Excludes in_progress/completed/full opportunities
+     * - Also provide a count of matched opportunities
      */
     public function recommendedForVolunteer(Request $request)
     {
@@ -66,11 +88,19 @@ class OpportunityMatchingController extends Controller
         $volunteerRegion = $profile->region ?? null;
         $volunteerAvailability = $profile->availability ?? null;
 
-        // Get all opportunities (optionally: can be filtered by "active", "upcoming", etc.)
-        $opportunities = Opportunity::with(['skills', 'organization.organizationProfile'])->get();
+        // Get all opportunities not in_progress/completed
+        $opportunities = Opportunity::with(['skills', 'organization.organizationProfile'])
+            ->whereNotIn('status', ['in_progress', 'completed'])
+            ->get();
 
         $results = [];
         foreach ($opportunities as $opp) {
+            // Exclude full
+            $acceptedCount = Application::where('opportunity_id', $opp->id)
+                ->where('status', 'accepted')
+                ->count();
+            if ($acceptedCount >= $opp->volunteers_needed) continue;
+
             $oppSkills = $opp->skills->pluck('id')->toArray();
 
             // Skill score: ratio of required skills matched
@@ -89,7 +119,6 @@ class OpportunityMatchingController extends Controller
             // Availability score - can be extended, simple example
             $availScore = 0;
             if ($volunteerAvailability && isset($opp->start_date)) {
-                // Example: If availability is "Weekends" and start_date is on weekend
                 if (stripos($volunteerAvailability, 'weekend') !== false) {
                     $weekDay = date('N', strtotime($opp->start_date));
                     if ($weekDay == 6 || $weekDay == 7) {
@@ -100,10 +129,13 @@ class OpportunityMatchingController extends Controller
 
             $score = $skillScore + $locScore + $availScore;
 
-            $results[] = [
-                'opportunity' => $opp,
-                'score' => round($score),
-            ];
+            // Only include opportunities with score >= 60
+            if ($score >= 60) {
+                $results[] = [
+                    'opportunity' => $opp,
+                    'score' => round($score),
+                ];
+            }
         }
 
         // Order by score descending
@@ -114,6 +146,12 @@ class OpportunityMatchingController extends Controller
         // Optionally, limit to top N matches
         $results = array_slice($results, 0, 20);
 
-        return response()->json(['matches' => $results]);
+        // Count of matched opportunities
+        $count = count($results);
+
+        return response()->json([
+            'matches' => $results,
+            'count' => $count,
+        ]);
     }
 }

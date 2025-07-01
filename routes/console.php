@@ -1,8 +1,8 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+use Illuminate\Console\Scheduling\Schedule;
+
+return function (Schedule $schedule) {
+    $schedule->command('app:auto-reject-unconfirmed-applications')->daily();
+};

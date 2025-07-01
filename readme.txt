@@ -135,3 +135,4 @@
 
 //
 i want org to view the volunteers their currently working with, the task assigned to them and also view rescently employeed volunteers. 
+ php artisan schedule:work

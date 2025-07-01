@@ -1,0 +1,146 @@
+# MVMS Enhanced API Implementation Workflow
+
+## 1. User Roles & Dashboard Experiences
+
+### 1.1 Volunteer
+- Register and create a profile (bio, skills, availability, location).
+- Dashboard includes:
+  - Matched opportunities (by skills/location).
+  - Application history and statuses.
+  - Assigned tasks and progress.
+  - Feedback received from organizations.
+
+### 1.2 Organization
+- Register and create an organization profile (mission, vision, focus areas).
+- Dashboard includes:
+  - Manage posted opportunities (CRUD).
+  - View and manage volunteer applications per opportunity.
+  - **View current volunteers (actively working on opportunities).**
+  - **View recently engaged (recently accepted) volunteers.**
+  - **View tasks/statuses for each volunteer.**
+  - Organization profile management.
+  - Export application/volunteer/task reports (CSV/PDF).
+
+### 1.3 Admin
+- Full data access.
+- Dashboard includes:
+  - User/role management.
+  - Approve/reject organizations.
+  - View all opportunities, applications, feedback.
+  - Skill management.
+  - System analytics and reports.
+  - Feedback moderation.
+
+---
+
+## 2. Staged API Implementation
+
+### Stage 1: Authentication & Role Setup
+- Implement Laravel Breeze/Jetstream & Sanctum for SPA API authentication.
+- Register/Login endpoints with validation.
+- Assign roles during registration (volunteer, organization).
+- Middleware for role-based access control.
+
+### Stage 2: Profile Management
+- **Volunteer Profile API**
+  - Create/update profile (bio, skills, location, region, district, availability).
+  - Fetch authenticated volunteer’s profile.
+- **Organization Profile API**
+  - Create/update organization profile.
+  - Fetch authenticated organization's profile.
+
+### Stage 3: Skills Management
+- Admin: CRUD for skills.
+- Volunteers: Attach/detach skills to profile.
+- Organizations: Assign required skills per opportunity.
+
+### Stage 4: Opportunities & Matching
+- Organization: CRUD for opportunities (title, desc, skills, dates, location).
+- Public/Volunteer: List & filter opportunities (by skill, location, org, date).
+- **Backend: Matching Engine** - Recommend opportunities to volunteers based on skills/location.
+
+### Stage 5: Applications & Assignments
+- Volunteer: Apply for opportunities (prevent duplicates).
+- Organization: View/manage all applications for their opportunities.
+  - Accept/reject applications (status, responded_at).
+  - Assign volunteers to opportunities and track participation.
+- Volunteer: View application status and opportunity history.
+
+### Stage 6: Task Management & Tracking
+- Volunteer: Mark task status (in progress, completed, quit) per assignment.
+- Organization/Admin: View volunteer task progress per opportunity.
+- **Organization:**
+  - **API endpoint to view all volunteers currently working (active status) on their opportunities.**
+  - **API endpoint to view recently accepted volunteers (recently assigned).**
+  - **API endpoint to list all tasks/statuses for each volunteer/opportunity.**
+
+### Stage 7: Feedback System
+- Organization: Submit feedback (rating/comments) for volunteers.
+- Volunteer: View feedback history.
+
+### Stage 8: Admin Dashboard/API
+- Admin: View/manage all users, roles, organizations, skills, opportunities, applications, feedback.
+- Approve/reject organizations.
+- Export data/reports (CSV, PDF).
+- System analytics/statistics.
+- Feedback moderation.
+
+### Stage 9: Notifications & Communication
+- Email notifications (Laravel Mail): registration, verification, password reset, application status updates.
+- Optional: Twilio/SMS notifications for critical updates.
+
+### Stage 10: Security, Validation, & Access Control
+- Use FormRequest validation for all endpoints.
+- Implement Policies/Gates for resource-level access control.
+- Rate limiting, API guards, CSRF for web routes.
+
+### Stage 11: Quality Assurance & Documentation
+- API Documentation (Laravel Scribe, Swagger, or OpenAPI).
+- Automated testing (Pest or PHPUnit).
+- Deployment on a production-ready environment.
+
+---
+
+## 3. Organization Volunteer Management API Endpoints
+
+| Endpoint                                              | Purpose                                               |
+|-------------------------------------------------------|-------------------------------------------------------|
+| GET /api/org/volunteers                              | List all current volunteers (actively assigned)       |
+| GET /api/org/volunteers/recent                       | List recently accepted volunteers                     |
+| GET /api/org/volunteers/{volunteer_id}/tasks         | List all tasks/statuses for a volunteer               |
+| GET /api/org/opportunities/{id}/applications         | List applications per opportunity (w/volunteer info)  |
+| GET /api/org/opportunities/{id}/volunteers           | List volunteers on a specific opportunity             |
+
+**Query logic for “current” volunteers:**  
+- Applications with `status='accepted'`
+- Latest `task_status` not `completed` or `quit`
+
+**Query logic for “recent” volunteers:**  
+- Applications with `status='accepted'`
+- Ordered by `responded_at` (descending)
+- Limit by count or recent time window (e.g., 30 days)
+
+---
+
+## 4. API & Eloquent Relationships (for reference)
+
+- User hasMany UserRole, VolunteerProfile, OrganizationProfile
+- VolunteerProfile hasMany VolunteerSkill, belongsTo User
+- OrganizationProfile belongsTo User, hasMany Opportunities
+- Opportunity belongsTo Organization (user), hasMany Applications
+- Application belongsTo Volunteer (user), Opportunity, hasMany TaskStatuses, hasOne Feedback
+- Skill hasMany VolunteerSkill, OpportunitySkill
+
+---
+
+## 5. Additional Enhancements
+
+- **Caching:** Use Laravel cache for dashboard stats and heavy queries.
+- **Soft Deletes:** Enable where appropriate (e.g., opportunities, profiles).
+- **Audit Trails:** Track changes to sensitive data (e.g., status, feedback).
+- **Rate Limiting:** For public-facing and sensitive endpoints.
+- **API Versioning:** Prefix routes for future extensibility.
+
+---
+
+**This workflow will ensure your MVMS is robust, scalable, and meets all specified requirements for both organizations and volunteers. If you need sample code for any of the endpoints or queries, just ask!**

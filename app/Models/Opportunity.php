@@ -19,4 +19,8 @@ class Opportunity extends Model
     {
         return $this->belongsTo(User::class, 'organization_id');
     }
+    public function applications()
+{
+    return $this->hasMany(Application::class);
+}
 }
