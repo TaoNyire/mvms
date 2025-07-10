@@ -38,45 +38,7 @@ Route::get('/health-check', function () {
     ]);
 });
 
-// Public opportunities endpoint (no authentication required)
-Route::get('/opportunities/public', function () {
-    try {
-        $opportunities = \App\Models\Opportunity::with(['skills', 'organization'])
-            ->where('status', 'active')
-            ->orderBy('created_at', 'desc')
-            ->limit(20)
-            ->get()
-            ->map(function ($opp) {
-                return [
-                    'id' => $opp->id,
-                    'title' => $opp->title,
-                    'description' => $opp->description,
-                    'location' => $opp->location,
-                    'start_date' => $opp->start_date,
-                    'end_date' => $opp->end_date,
-                    'volunteers_needed' => $opp->volunteers_needed,
-                    'status' => $opp->status,
-                    'skills' => $opp->skills->pluck('name')->toArray(),
-                    'organization' => [
-                        'id' => $opp->organization->id ?? null,
-                        'name' => $opp->organization->name ?? 'Unknown Organization'
-                    ]
-                ];
-            });
-
-        return response()->json([
-            'data' => $opportunities,
-            'total' => $opportunities->count(),
-            'message' => 'Real data from database'
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'error' => 'Database error: ' . $e->getMessage(),
-            'data' => [],
-            'total' => 0
-        ], 500);
-    }
-});
+// Removed duplicate route - using controller-based route instead
 
 // Public stats endpoint (no authentication required)
 Route::get('/stats/public', function () {
