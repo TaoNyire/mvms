@@ -2,6 +2,55 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| CRITICAL: Public Routes - NO AUTHENTICATION REQUIRED
+| These MUST be at the top to avoid middleware conflicts
+|--------------------------------------------------------------------------
+*/
+
+// Health check endpoint
+Route::get('/health-check', function () {
+    return response()->json([
+        'status' => 'ok',
+        'message' => 'API is working',
+        'timestamp' => now()->toISOString()
+    ]);
+});
+
+// Public statistics endpoint
+Route::get('/stats/public', function () {
+    try {
+        $volunteerCount = \App\Models\User::whereHas('roles', function($q) {
+            $q->where('name', 'volunteer');
+        })->count();
+
+        $organizationCount = \App\Models\User::whereHas('roles', function($q) {
+            $q->where('name', 'organization');
+        })->count();
+
+        $opportunityCount = \App\Models\Opportunity::count();
+
+        return response()->json([
+            'volunteers' => $volunteerCount,
+            'organizations' => $organizationCount,
+            'opportunities' => $opportunityCount,
+            'message' => 'Real stats from database'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'volunteers' => 0,
+            'organizations' => 0,
+            'opportunities' => 0,
+            'error' => 'Database error: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// Public opportunities endpoints
+Route::get('/opportunities/public', [App\Http\Controllers\OpportunityMatchingController::class, 'publicIndex']);
+Route::get('/public/opportunities', [App\Http\Controllers\OpportunityMatchingController::class, 'publicIndex']);
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SkillController;
 use App\Http\Controllers\FeedbackController;
@@ -502,6 +551,9 @@ Route::get('/debug-skills', function () {
         $skillsColumns = \Schema::getColumnListing('skills');
         $userSkillsColumns = \Schema::getColumnListing('user_skills');
 
+        // Get first few skills as examples
+        $sampleSkills = \App\Models\Skill::take(5)->get();
+
         return response()->json([
             'status' => 'success',
             'skills_count' => $skillsCount,
@@ -509,7 +561,40 @@ Route::get('/debug-skills', function () {
             'users_count' => $usersCount,
             'skills_columns' => $skillsColumns,
             'user_skills_columns' => $userSkillsColumns,
+            'sample_skills' => $sampleSkills,
             'message' => 'Database debug info'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
+// Seed skills if empty
+Route::get('/seed-skills', function () {
+    try {
+        $skillsCount = \App\Models\Skill::count();
+
+        if ($skillsCount > 0) {
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Skills already exist',
+                'skills_count' => $skillsCount
+            ]);
+        }
+
+        // Run the skill seeder
+        \Artisan::call('db:seed', ['--class' => 'SkillSeeder']);
+
+        $newSkillsCount = \App\Models\Skill::count();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Skills seeded successfully',
+            'skills_count' => $newSkillsCount
         ]);
     } catch (\Exception $e) {
         return response()->json([

@@ -60,27 +60,40 @@ class SkillController extends Controller
             $skillsByCategory = collect([]);
 
             try {
-                // Try to get user skills
+                // Get user skills with pivot data (proficiency, experience, etc.)
                 $skills = $user->skills()->get();
 
-                // Only group by category if skills have category attribute
-                if ($skills->isNotEmpty() && $skills->first()->category) {
-                    $skillsByCategory = $skills->groupBy('category');
-                } else {
-                    $skillsByCategory = collect([]);
-                }
+                // Transform skills to include pivot data in a more accessible format
+                $skillsWithPivot = $skills->map(function ($skill) {
+                    return [
+                        'id' => $skill->id,
+                        'name' => $skill->name,
+                        'category' => $skill->category ?? 'general',
+                        'description' => $skill->description ?? '',
+                        'proficiency_level' => $skill->pivot->proficiency_level ?? 'beginner',
+                        'years_experience' => $skill->pivot->years_experience ?? 0,
+                        'notes' => $skill->pivot->notes ?? '',
+                        'added_at' => $skill->pivot->created_at ?? null
+                    ];
+                });
+
+                // Group by category
+                $skillsByCategory = $skillsWithPivot->groupBy('category');
+
             } catch (\Exception $skillsError) {
                 \Log::error('Error fetching user skills relationship: ' . $skillsError->getMessage());
+                \Log::error('Skills error trace: ' . $skillsError->getTraceAsString());
+
                 // Return empty but valid response
-                $skills = collect([]);
+                $skillsWithPivot = collect([]);
                 $skillsByCategory = collect([]);
             }
 
             return response()->json([
-                'skills' => $skills,
+                'skills' => $skillsWithPivot,
                 'skills_by_category' => $skillsByCategory,
-                'total_skills' => $skills->count(),
-                'categories' => $skills->pluck('category')->unique()->values(),
+                'total_skills' => $skillsWithPivot->count(),
+                'categories' => $skillsWithPivot->pluck('category')->unique()->values(),
                 'message' => 'User skills retrieved successfully',
                 'user_id' => $user->id,
                 'user_name' => $user->name
@@ -162,8 +175,8 @@ class SkillController extends Controller
                 \Log::warning('Failed to log skill addition: ' . $logError->getMessage());
             }
 
-            // Get the added skill
-            $addedSkill = $user->skills()->where('skill_id', $validated['skill_id'])->with('pivot')->first();
+            // Get the added skill with pivot data
+            $addedSkill = $user->skills()->where('skills.id', $validated['skill_id'])->first();
 
             return response()->json([
                 'message' => 'Skill added successfully',
