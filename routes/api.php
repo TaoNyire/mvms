@@ -38,6 +38,28 @@ Route::get('/health-check', function () {
     ]);
 });
 
+// Test public opportunities endpoint
+Route::get('/test-public-opportunities', function () {
+    try {
+        $opportunities = \App\Models\Opportunity::with(['skills', 'organization'])
+            ->where('status', 'active')
+            ->limit(5)
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'count' => $opportunities->count(),
+            'data' => $opportunities,
+            'message' => 'Public opportunities test endpoint working'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+});
+
 // Removed duplicate route - using controller-based route instead
 
 // Public stats endpoint (no authentication required)
@@ -257,12 +279,60 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 
 /*
 |--------------------------------------------------------------------------
-| Public Routes (Accessible to Anyone)
+| Public Routes (Accessible to Anyone) - MUST BE FIRST
 |--------------------------------------------------------------------------
 */
 
-// List/filter public opportunities
+// Public opportunities endpoint - NO AUTHENTICATION REQUIRED
 Route::get('/opportunities/public', [OpportunityMatchingController::class, 'publicIndex']);
+
+// Alternative public opportunities endpoint for testing
+Route::get('/public/opportunities', [OpportunityMatchingController::class, 'publicIndex']);
+
+// Test skills endpoint (with auth)
+Route::middleware('auth:sanctum')->get('/test-my-skills', function (Request $request) {
+    try {
+        $user = $request->user();
+        return response()->json([
+            'status' => 'success',
+            'user_id' => $user->id,
+            'user_name' => $user->name,
+            'skills' => [],
+            'message' => 'Test skills endpoint working'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+});
+
+// Test add skill endpoint
+Route::middleware('auth:sanctum')->post('/test-add-skill', function (Request $request) {
+    try {
+        $user = $request->user();
+
+        // Check if skills table has data
+        $skillsCount = \App\Models\Skill::count();
+        $firstSkill = \App\Models\Skill::first();
+
+        return response()->json([
+            'status' => 'success',
+            'user_id' => $user->id,
+            'skills_count' => $skillsCount,
+            'first_skill' => $firstSkill,
+            'request_data' => $request->all(),
+            'message' => 'Test add skill endpoint working'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
 
 // Test opportunity endpoint (no auth required)
 Route::get('/test/opportunity/{id}', function($id) {
@@ -421,6 +491,35 @@ Route::middleware('auth:sanctum')->get('/test-volunteer-dashboard', [VolunteerDa
 Route::middleware('auth:sanctum')->get('/test-volunteer-profile', [VolunteerProfileController::class, 'show']);
 Route::middleware('auth:sanctum')->get('/test-volunteer-recommended', [OpportunityMatchingController::class, 'recommendedForVolunteer']);
 
+// Debug skills endpoint
+Route::get('/debug-skills', function () {
+    try {
+        $skillsCount = \App\Models\Skill::count();
+        $userSkillsCount = \DB::table('user_skills')->count();
+        $usersCount = \App\Models\User::count();
+
+        // Check if skills table has required columns
+        $skillsColumns = \Schema::getColumnListing('skills');
+        $userSkillsColumns = \Schema::getColumnListing('user_skills');
+
+        return response()->json([
+            'status' => 'success',
+            'skills_count' => $skillsCount,
+            'user_skills_count' => $userSkillsCount,
+            'users_count' => $usersCount,
+            'skills_columns' => $skillsColumns,
+            'user_skills_columns' => $userSkillsColumns,
+            'message' => 'Database debug info'
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+});
+
 // Test database data
 Route::get('/test-db', function () {
     $userCount = \App\Models\User::count();
@@ -478,32 +577,4 @@ Route::get('/volunteer-credentials', function () {
     ]);
 });
 
-// Public statistics endpoint for landing page
-Route::get('/stats/public', function () {
-    try {
-        $volunteerCount = \App\Models\User::whereHas('roles', function($q) {
-            $q->where('name', 'volunteer');
-        })->count();
-
-        $organizationCount = \App\Models\User::whereHas('roles', function($q) {
-            $q->where('name', 'organization');
-        })->count();
-
-        $opportunityCount = \App\Models\Opportunity::count();
-
-        return response()->json([
-            'volunteers' => $volunteerCount,
-            'organizations' => $organizationCount,
-            'opportunities' => $opportunityCount,
-            'success' => true
-        ]);
-    } catch (\Exception $e) {
-        return response()->json([
-            'volunteers' => 0,
-            'organizations' => 0,
-            'opportunities' => 0,
-            'success' => false,
-            'error' => 'Failed to fetch statistics'
-        ], 500);
-    }
-});
+// Removed duplicate stats route - using the one defined earlier
