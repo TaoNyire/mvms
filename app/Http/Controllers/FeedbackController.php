@@ -121,4 +121,77 @@ class FeedbackController extends Controller
 
         return response()->json($feedbacks);
     }
+
+    /**
+     * Admin: Get all feedback with pagination and filtering
+     */
+    public function adminIndex(Request $request)
+    {
+        $query = Feedback::with([
+            'application.volunteer',
+            'application.opportunity',
+            'fromUser'
+        ])->orderBy('created_at', 'desc');
+
+        if ($request->rating) {
+            $query->where('rating', $request->rating);
+        }
+
+        if ($request->search) {
+            $query->whereHas('application.volunteer', function($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->search . '%');
+            })->orWhereHas('application.opportunity', function($q) use ($request) {
+                $q->where('title', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        $feedbacks = $query->paginate(20);
+        return response()->json($feedbacks);
+    }
+
+    /**
+     * Get feedback status for a specific application
+     */
+    public function getFeedbackStatus(Request $request, $application_id)
+    {
+        $user = $request->user();
+        $application = Application::with(['taskStatus', 'feedback', 'opportunity', 'volunteer'])->findOrFail($application_id);
+
+        // Check if user has access to this application
+        $isOrganization = $application->opportunity->organization_id === $user->id;
+        $isVolunteer = $application->volunteer_id === $user->id;
+        $isAdmin = $user->hasRole('admin');
+
+        if (!($isOrganization || $isVolunteer || $isAdmin)) {
+            return response()->json(['message' => 'Unauthorized'], 403);
+        }
+
+        // Check if feedback is allowed
+        $feedbackAllowed = $application->status === 'accepted' &&
+                          $application->taskStatus &&
+                          in_array($application->taskStatus->status, ['completed', 'quit']);
+
+        // Get existing feedback
+        $orgFeedback = Feedback::where('application_id', $application_id)
+                              ->where('from_type', 'org')
+                              ->with('fromUser')
+                              ->first();
+
+        $volunteerFeedback = Feedback::where('application_id', $application_id)
+                                    ->where('from_type', 'volunteer')
+                                    ->with('fromUser')
+                                    ->first();
+
+        return response()->json([
+            'feedback_allowed' => $feedbackAllowed,
+            'application_status' => $application->status,
+            'task_status' => $application->taskStatus?->status,
+            'org_feedback' => $orgFeedback,
+            'volunteer_feedback' => $volunteerFeedback,
+            'can_submit_org_feedback' => $isOrganization && $feedbackAllowed && !$orgFeedback,
+            'can_submit_volunteer_feedback' => $isVolunteer && $feedbackAllowed && !$volunteerFeedback,
+            'can_view_org_feedback' => $isVolunteer || $isAdmin || $isOrganization,
+            'can_view_volunteer_feedback' => $isOrganization || $isAdmin || $isVolunteer,
+        ]);
+    }
 }

@@ -29,6 +29,23 @@ class OrganizationProfile extends Model
     ];
 
     /**
+     * The attributes that should be cast.
+     */
+    protected $casts = [
+        'is_registered' => 'boolean',
+        'active' => 'boolean',
+    ];
+
+    /**
+     * The model's default values for attributes.
+     */
+    protected $attributes = [
+        'status' => 'pending',
+        'active' => true,
+        'is_registered' => true,
+    ];
+
+    /**
      * Relationship: OrganizationProfile belongs to a User
      */
     public function user(): BelongsTo

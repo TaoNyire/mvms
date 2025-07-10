@@ -79,7 +79,11 @@ class OpportunityMatchingController extends Controller
         $profile = $user->volunteerProfile;
 
         if (!$profile) {
-            return response()->json(['message' => 'No volunteer profile found'], 404);
+            // Return empty recommendations if no profile exists
+            return response()->json([
+                'data' => [],
+                'message' => 'Complete your profile to get personalized recommendations'
+            ]);
         }
 
         // Get volunteer data

@@ -8,7 +8,8 @@ class Application extends Model
 {
     protected $fillable = [
         'volunteer_id', 'opportunity_id',
-        'status', 'applied_at', 'responded_at'
+        'status', 'applied_at', 'responded_at',
+        'feedback_rating', 'feedback_comment'
     ];
 
     public function volunteer()
@@ -23,7 +24,7 @@ class Application extends Model
 
     public function taskStatus()
     {
-        return $this->hasOne(TaskStatus::class);
+        return $this->hasOne(ApplicationTaskStatus::class);
     }
 
     public function feedback()

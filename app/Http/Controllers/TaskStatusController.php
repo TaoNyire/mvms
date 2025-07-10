@@ -77,10 +77,54 @@ class TaskStatusController extends Controller
             ->whereHas('taskStatus', function ($q) {
                 $q->where('status', 'in_progress');
             })
-            ->with(['volunteer', 'opportunity', 'taskStatus'])
-            ->get();
+            ->with(['volunteer.volunteerProfile.skills', 'opportunity.skills', 'taskStatus'])
+            ->get()
+            ->map(function ($application) {
+                return [
+                    'id' => $application->id,
+                    'status' => $application->status,
+                    'applied_at' => $application->applied_at,
+                    'responded_at' => $application->responded_at,
+                    'created_at' => $application->created_at,
+                    'updated_at' => $application->updated_at,
 
-        return response()->json($applications);
+                    // Volunteer information
+                    'volunteer_id' => $application->volunteer_id,
+                    'volunteer_name' => $application->volunteer->name ?? 'Unknown Volunteer',
+                    'volunteer_email' => $application->volunteer->email ?? 'No email',
+                    'volunteer_phone' => $application->volunteer->volunteerProfile->phone ?? null,
+                    'volunteer_location' => $application->volunteer->volunteerProfile->location ?? null,
+                    'volunteer_bio' => $application->volunteer->volunteerProfile->bio ?? null,
+                    'volunteer_skills' => $application->volunteer->volunteerProfile ?
+                        $application->volunteer->volunteerProfile->skills->pluck('name')->toArray() : [],
+
+                    // Opportunity information
+                    'opportunity_id' => $application->opportunity_id,
+                    'opportunity_title' => $application->opportunity->title ?? 'Unknown Opportunity',
+                    'opportunity_description' => $application->opportunity->description ?? null,
+                    'opportunity_location' => $application->opportunity->location ?? null,
+                    'opportunity_start_date' => $application->opportunity->start_date ?? null,
+                    'opportunity_end_date' => $application->opportunity->end_date ?? null,
+                    'opportunity_volunteers_needed' => $application->opportunity->volunteers_needed ?? null,
+                    'opportunity_skills' => $application->opportunity->skills->pluck('name')->toArray() ?? [],
+
+                    // Task status
+                    'task_status' => $application->taskStatus ? [
+                        'status' => $application->taskStatus->status,
+                        'started_at' => $application->taskStatus->started_at,
+                        'completed_at' => $application->taskStatus->completed_at,
+                    ] : null,
+
+                    // Relationships for frontend compatibility
+                    'volunteer' => $application->volunteer,
+                    'opportunity' => $application->opportunity,
+                ];
+            });
+
+        return response()->json([
+            'data' => $applications,
+            'total' => $applications->count(),
+        ]);
     }
 
     /**
@@ -96,12 +140,56 @@ class TaskStatusController extends Controller
             })
             ->where('status', 'accepted')
             ->where('responded_at', '>=', $recentWindow)
-            ->with(['volunteer', 'opportunity', 'taskStatus'])
+            ->with(['volunteer.volunteerProfile.skills', 'opportunity.skills', 'taskStatus'])
             ->orderByDesc('responded_at')
             ->limit(20)
-            ->get();
+            ->get()
+            ->map(function ($application) {
+                return [
+                    'id' => $application->id,
+                    'status' => $application->status,
+                    'applied_at' => $application->applied_at,
+                    'responded_at' => $application->responded_at,
+                    'created_at' => $application->created_at,
+                    'updated_at' => $application->updated_at,
 
-        return response()->json($applications);
+                    // Volunteer information
+                    'volunteer_id' => $application->volunteer_id,
+                    'volunteer_name' => $application->volunteer->name ?? 'Unknown Volunteer',
+                    'volunteer_email' => $application->volunteer->email ?? 'No email',
+                    'volunteer_phone' => $application->volunteer->volunteerProfile->phone ?? null,
+                    'volunteer_location' => $application->volunteer->volunteerProfile->location ?? null,
+                    'volunteer_bio' => $application->volunteer->volunteerProfile->bio ?? null,
+                    'volunteer_skills' => $application->volunteer->volunteerProfile ?
+                        $application->volunteer->volunteerProfile->skills->pluck('name')->toArray() : [],
+
+                    // Opportunity information
+                    'opportunity_id' => $application->opportunity_id,
+                    'opportunity_title' => $application->opportunity->title ?? 'Unknown Opportunity',
+                    'opportunity_description' => $application->opportunity->description ?? null,
+                    'opportunity_location' => $application->opportunity->location ?? null,
+                    'opportunity_start_date' => $application->opportunity->start_date ?? null,
+                    'opportunity_end_date' => $application->opportunity->end_date ?? null,
+                    'opportunity_volunteers_needed' => $application->opportunity->volunteers_needed ?? null,
+                    'opportunity_skills' => $application->opportunity->skills->pluck('name')->toArray() ?? [],
+
+                    // Task status
+                    'task_status' => $application->taskStatus ? [
+                        'status' => $application->taskStatus->status,
+                        'started_at' => $application->taskStatus->started_at,
+                        'completed_at' => $application->taskStatus->completed_at,
+                    ] : null,
+
+                    // Relationships for frontend compatibility
+                    'volunteer' => $application->volunteer,
+                    'opportunity' => $application->opportunity,
+                ];
+            });
+
+        return response()->json([
+            'data' => $applications,
+            'total' => $applications->count(),
+        ]);
     }
 
     /**

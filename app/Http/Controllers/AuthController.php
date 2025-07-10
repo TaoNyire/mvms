@@ -2,184 +2,111 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Role;
-use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Facades\DB;
+use App\Models\User;
+use App\Models\SystemLog;
 
 class AuthController extends Controller
 {
-    // Register a new user
+    // Register new user
     public function register(Request $request)
     {
-        $validated = $request->validate([
+        $fields = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
-            'role' => 'required|string|exists:roles,name',
+            'email' => 'required|string|email|unique:users,email',
+            'password' => 'required|string|confirmed|min:6',
+            'role' => 'required|string', // e.g. 'Volunteer', 'Organization', 'Admin'
         ]);
 
         $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'name' => $fields['name'],
+            'email' => $fields['email'],
+            'password' => bcrypt($fields['password']),
         ]);
 
-        $role = Role::where('name', $validated['role'])->first();
+        // Attach role (using your own roles table)
+        $user->roles()->attach(\App\Models\Role::where('name', $fields['role'])->first());
 
-        if (!$role) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Selected role does not exist. Please contact support.',
-            ], 422);
-        }
-
-        try {
-            $user->roles()->attach($role->id);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User created, but failed to assign role. Please contact support.',
-                'error' => $e->getMessage(),
-            ], 500);
-        }
-
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user->createToken('authToken')->plainTextToken;
 
         return response()->json([
-            'success' => true,
-            'message' => 'Registration successful. Role assigned: ' . $role->name,
             'access_token' => $token,
-            'token_type' => 'Bearer',
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'roles' => $user->roles->pluck('name'), // Return as array for consistency
+                'role' => optional($user->roles()->first())->name, // string role for frontend
             ]
         ], 201);
     }
 
-    // Login registered user
+    // Login user
     public function login(Request $request)
     {
-        $validated = $request->validate([
+        $fields = $request->validate([
             'email' => 'required|string|email',
-            'password' => 'required|string|min:8',
+            'password' => 'required|string',
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $user = User::where('email', $fields['email'])->first();
 
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid email or password.',
+        if (!$user || !Hash::check($fields['password'], $user->password)) {
+            // Log failed login attempt
+            SystemLog::logFailedLogin($fields['email'], [
+                'reason' => !$user ? 'user_not_found' : 'invalid_password',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent()
+            ]);
+
+            return response([
+                'message' => 'Invalid login credentials'
             ], 401);
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user->createToken('authToken')->plainTextToken;
 
-        $roles = $user->roles->pluck('name');
+        // Log successful login
+        SystemLog::logLogin($user, 'success', [
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'login_time' => now()
+        ]);
 
         return response()->json([
-            'success' => true,
-            'message' => 'Login successful.',
             'access_token' => $token,
-            'token_type' => 'Bearer',
             'user' => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'roles' => $roles,
+                'role' => optional($user->roles()->first())->name, // string role for frontend
             ]
         ]);
     }
 
-    // Logout user
+    // Logout user (invalidate the current token)
     public function logout(Request $request)
     {
-        // More memory efficient: delete tokens via direct DB query
-        DB::table('personal_access_tokens')
-            ->where('tokenable_id', $request->user()->id)
-            ->where('tokenable_type', get_class($request->user()))
-            ->delete();
+        $user = $request->user();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Logged out successfully.',
-        ]);
+        // Log logout
+        SystemLog::logLogout($user);
+
+        $user->currentAccessToken()->delete();
+        return response()->json(['message' => 'Logged out']);
     }
 
-    // Handle forgotten password
-    public function forgotPassword(Request $request)
-    {
-        $request->validate(['email' => 'required|email']);
-
-        $status = Password::sendResetLink($request->only('email'));
-
-        if ($status === Password::RESET_LINK_SENT) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Password reset link sent to your email.',
-            ]);
-        } else {
-            return response()->json([
-                'success' => false,
-                'message' => __($status),
-            ], 400);
-        }
-    }
-
-    // Handle the password reset
-    public function resetPassword(Request $request)
-    {
-        $request->validate([
-            'token' => 'required',
-            'email' => 'required|email',
-            'password' => 'required|string|min:8|confirmed',
-        ]);
-
-        $status = Password::reset(
-            $request->only('email', 'password', 'password_confirmation', 'token'),
-            function ($user, $password) {
-                $user->forceFill([
-                    'password' => Hash::make($password),
-                ])->save();
-
-                // Efficient token delete
-                DB::table('personal_access_tokens')
-                    ->where('tokenable_id', $user->id)
-                    ->where('tokenable_type', get_class($user))
-                    ->delete();
-            }
-        );
-
-        if ($status === Password::PASSWORD_RESET) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Password has been reset successfully.',
-            ]);
-        } else {
-            return response()->json([
-                'success' => false,
-                'message' => __($status),
-            ], 400);
-        }
-    }
-
-    // Return authenticated user's info (memory safe)
+    // Get current authenticated user's info
     public function me(Request $request)
     {
-        $user = $request->user()->load('roles'); // Only load roles
+        $user = $request->user();
 
         return response()->json([
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
-            'roles' => $user->roles->pluck('name'),
-            // Optionally add profile summaries here, but only specific fields!
+            'role' => optional($user->roles()->first())->name,
         ]);
     }
 }

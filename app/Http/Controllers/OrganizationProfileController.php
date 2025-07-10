@@ -59,6 +59,11 @@ class OrganizationProfileController extends Controller
             'status' => 'nullable|in:pending,verified,rejected'
         ]);
 
+        // Ensure status has a default value if not provided
+        if (!isset($data['status']) || $data['status'] === null) {
+            $data['status'] = 'pending';
+        }
+
         $profile = OrganizationProfile::updateOrCreate(
             ['user_id' => $request->user()->id],
             $data

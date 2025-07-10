@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\OrganizationProfile;
@@ -35,7 +35,7 @@ class OrganizationController extends Controller
         return response()->json(['message' => 'Organization approved']);
     }
 
-    public function reject(Request $request, $id)
+    public function reject($id)
     {
         $org = OrganizationProfile::findOrFail($id);
         $org->status = 'rejected';

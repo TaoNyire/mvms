@@ -13,6 +13,33 @@ class OpportunityController extends Controller
         return $user->opportunities()->with('skills')->get();
     }
 
+    public function show(Request $request, $id)
+    {
+        try {
+            $user = $request->user();
+
+            // Find the opportunity with relationships
+            $opportunity = Opportunity::with(['skills', 'organization'])
+                ->withCount('applications')
+                ->findOrFail($id);
+
+            // Check if user has permission to view this opportunity
+            // Organizations can only view their own opportunities
+            if ($user->hasRole('organization') && $opportunity->organization_id !== $user->id) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+
+            return response()->json([
+                'data' => $opportunity
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Opportunity not found',
+                'message' => $e->getMessage()
+            ], 404);
+        }
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -63,5 +90,79 @@ class OpportunityController extends Controller
         }
         $opportunity->delete();
         return response()->json(['message' => 'Opportunity deleted']);
+    }
+
+    /**
+     * Get applications for a specific opportunity
+     */
+    public function getApplications(Request $request, $id)
+    {
+        try {
+            $user = $request->user();
+
+            // Find the opportunity
+            $opportunity = Opportunity::findOrFail($id);
+
+            // Check if user has permission to view applications for this opportunity
+            if ($user->hasRole('organization') && $opportunity->organization_id !== $user->id) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+
+            // Get applications with volunteer details
+            $applications = $opportunity->applications()
+                ->with(['volunteer', 'volunteer.volunteerProfile'])
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(function($application) {
+                    return [
+                        'id' => $application->id,
+                        'status' => $application->status,
+                        'applied_at' => $application->applied_at,
+                        'responded_at' => $application->responded_at,
+                        'feedback_rating' => $application->feedback_rating,
+                        'feedback_comment' => $application->feedback_comment,
+                        'volunteer' => [
+                            'id' => $application->volunteer->id,
+                            'name' => $application->volunteer->name,
+                            'email' => $application->volunteer->email,
+                            'profile' => $application->volunteer->volunteerProfile
+                        ]
+                    ];
+                });
+
+            return response()->json([
+                'data' => $applications
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Failed to get applications',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Admin: Get all opportunities with pagination and filtering
+     */
+    public function adminIndex(Request $request)
+    {
+        $query = Opportunity::with(['organization', 'skills'])
+            ->withCount('applications')
+            ->orderBy('created_at', 'desc');
+
+        if ($request->status) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->search) {
+            $query->where(function($q) use ($request) {
+                $q->where('title', 'like', '%' . $request->search . '%')
+                  ->orWhere('description', 'like', '%' . $request->search . '%')
+                  ->orWhere('location', 'like', '%' . $request->search . '%');
+            });
+        }
+
+        $opportunities = $query->paginate(20);
+        return response()->json($opportunities);
     }
 }

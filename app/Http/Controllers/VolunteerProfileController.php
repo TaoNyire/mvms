@@ -10,10 +10,20 @@ class VolunteerProfileController extends Controller
     // Fetch authenticated volunteer's profile // Fetch authenticated volunteer's profile with skills
     public function show(Request $request)
     {
-        // Eager load skills
+        // Eager load skills or create profile if it doesn't exist
         $profile = $request->user()->volunteerProfile()->with('skills')->first();
         if (!$profile) {
-            return response()->json(['message' => 'Profile not found'], 404);
+            // Create a new profile for the user
+            $profile = \App\Models\VolunteerProfile::create([
+                'user_id' => $request->user()->id,
+                'bio' => null,
+                'location' => null,
+                'district' => null,
+                'region' => null,
+                'availability' => null,
+            ]);
+            // Load skills relationship
+            $profile->load('skills');
         }
 
         // Fields to check
