@@ -39,9 +39,21 @@ class ApplicationStatusNotification extends Notification
                 break;
 
             case 'rejected':
-                $mail->subject("Your Application has been Rejected")
-                    ->line("We regret to inform you that your application for the opportunity '{$this->application->opportunity->title}' was not successful at this time.")
-                    ->line('Thank you for your interest. Please feel free to apply for other opportunities.');
+                // Check if rejection was due to recruitment closure
+                $opportunity = $this->application->opportunity;
+                $isRecruitmentClosed = $opportunity->status === 'recruitment_closed';
+
+                if ($isRecruitmentClosed) {
+                    $mail->subject("Opportunity Recruitment Closed")
+                        ->line("We regret to inform you that recruitment for the opportunity '{$this->application->opportunity->title}' has been closed as we have reached our volunteer capacity.")
+                        ->line('Your application was not processed in time, but we encourage you to apply for other opportunities.')
+                        ->action('Browse Other Opportunities', url('/opportunities'));
+                } else {
+                    $mail->subject("Your Application has been Rejected")
+                        ->line("We regret to inform you that your application for the opportunity '{$this->application->opportunity->title}' was not successful at this time.")
+                        ->line('Thank you for your interest. Please feel free to apply for other opportunities.')
+                        ->action('Browse Other Opportunities', url('/opportunities'));
+                }
                 break;
 
             case 'pending':

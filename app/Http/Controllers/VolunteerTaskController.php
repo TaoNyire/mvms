@@ -16,15 +16,17 @@ class VolunteerTaskController extends Controller
     public function getMyTasks(Request $request)
     {
         $user = Auth::user();
-        
-        $applications = Application::where('user_id', $user->id)
+
+        $applications = Application::where('volunteer_id', $user->id)
             ->where('status', 'accepted')
-            ->with(['opportunity.organization', 'taskStatus'])
+            ->where('confirmation_status', 'confirmed')
+            ->with(['opportunity.organization', 'taskStatus', 'task'])
             ->get();
 
         $tasks = $applications->map(function($application) {
             $taskStatus = $application->taskStatus;
-            
+            $task = $application->task;
+
             return [
                 'id' => $application->id,
                 'opportunity' => [
@@ -36,6 +38,14 @@ class VolunteerTaskController extends Controller
                     'end_date' => $application->opportunity->end_date,
                     'organization' => $application->opportunity->organization->name ?? 'Unknown'
                 ],
+                'task' => $task ? [
+                    'id' => $task->id,
+                    'title' => $task->title,
+                    'description' => $task->description,
+                    'start_date' => $task->start_date,
+                    'end_date' => $task->end_date,
+                    'status' => $task->status
+                ] : null,
                 'task_status' => $taskStatus ? [
                     'status' => $taskStatus->status,
                     'started_at' => $taskStatus->started_at,
@@ -73,7 +83,7 @@ class VolunteerTaskController extends Controller
         $user = Auth::user();
         
         $application = Application::where('id', $applicationId)
-            ->where('user_id', $user->id)
+            ->where('volunteer_id', $user->id)
             ->where('status', 'accepted')
             ->first();
 
@@ -128,7 +138,7 @@ class VolunteerTaskController extends Controller
         $user = Auth::user();
         
         $application = Application::where('id', $applicationId)
-            ->where('user_id', $user->id)
+            ->where('volunteer_id', $user->id)
             ->where('status', 'accepted')
             ->first();
 
@@ -176,7 +186,7 @@ class VolunteerTaskController extends Controller
         $user = Auth::user();
         
         $application = Application::where('id', $applicationId)
-            ->where('user_id', $user->id)
+            ->where('volunteer_id', $user->id)
             ->where('status', 'accepted')
             ->first();
 
@@ -231,7 +241,7 @@ class VolunteerTaskController extends Controller
         $user = Auth::user();
         
         $application = Application::where('id', $applicationId)
-            ->where('user_id', $user->id)
+            ->where('volunteer_id', $user->id)
             ->where('status', 'accepted')
             ->first();
 

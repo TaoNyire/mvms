@@ -2,6 +2,31 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Artisan;
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TestController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\SkillController;
+use App\Http\Controllers\MessageController;
+use App\Http\Controllers\FeedbackController;
+use App\Http\Controllers\TaskStatusController;
+use App\Http\Controllers\ApplicationController;
+use App\Http\Controllers\OpportunityController;
+use App\Http\Controllers\OrganizationController;
+use App\Http\Controllers\VolunteerTaskController;
+use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\VolunteerSkillController;
+use App\Http\Controllers\VolunteerProfileController;
+use App\Http\Controllers\OrganizationReportController;
+use App\Http\Controllers\VolunteerDashboardController;
+use App\Http\Controllers\OpportunityMatchingController;
+use App\Http\Controllers\OrganizationProfileController;
+use App\Http\Controllers\OrganizationDashboardController;
+use App\Http\Controllers\OrganizationSkillController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -51,25 +76,7 @@ Route::get('/stats/public', function () {
 // Public opportunities endpoints
 Route::get('/opportunities/public', [App\Http\Controllers\OpportunityMatchingController::class, 'publicIndex']);
 Route::get('/public/opportunities', [App\Http\Controllers\OpportunityMatchingController::class, 'publicIndex']);
-use App\Http\Controllers\AuthController;
-use App\Http\Controllers\SkillController;
-use App\Http\Controllers\FeedbackController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\TaskStatusController;
-use App\Http\Controllers\ApplicationController;
-use App\Http\Controllers\OpportunityController;
-use App\Http\Controllers\AdminDashboardController;
-use App\Http\Controllers\VolunteerSkillController;
-use App\Http\Controllers\VolunteerProfileController;
-use App\Http\Controllers\OrganizationController;
-use App\Http\Controllers\VolunteerDashboardController;
-use App\Http\Controllers\OpportunityMatchingController;
-use App\Http\Controllers\OrganizationProfileController;
-use App\Http\Controllers\OrganizationDashboardController;
-use App\Http\Controllers\MessageController;
-use App\Http\Controllers\OrganizationReportController;
-use App\Http\Controllers\VolunteerTaskController;
-use App\Http\Controllers\TestController;
+
 
 
 /*
@@ -77,15 +84,6 @@ use App\Http\Controllers\TestController;
 | Public Authentication Routes
 |--------------------------------------------------------------------------
 */
-
-// Simple test route to check if API is working
-Route::get('/health-check', function () {
-    return response()->json([
-        'status' => 'ok',
-        'message' => 'API is working',
-        'timestamp' => now()->toISOString()
-    ]);
-});
 
 // Test public opportunities endpoint
 Route::get('/test-public-opportunities', function () {
@@ -181,6 +179,7 @@ Route::middleware(['auth:sanctum', 'role:volunteer'])->group(function () {
 
     // Volunteer notifications
     Route::get('/my-notifications', [VolunteerDashboardController::class, 'getNotifications']);
+    Route::get('/my-notifications/count', [VolunteerDashboardController::class, 'getNotificationCount']);
     Route::put('/notifications/{id}/read', [VolunteerDashboardController::class, 'markNotificationAsRead']);
 
     // Volunteer withdraws an application
@@ -206,11 +205,32 @@ Route::middleware(['auth:sanctum', 'role:volunteer'])->group(function () {
 Route::middleware(['auth:sanctum', 'role:organization'])->group(function () {
     // Dashboard
     Route::get('/organization/dashboard', [OrganizationDashboardController::class, 'index']);
-    Route::get('/organization/reports', [OrganizationDashboardController::class, 'reports']);
+    Route::get('/organization/task-progress-overview', [OrganizationDashboardController::class, 'getTaskProgressOverview']);
+
+    // Test endpoint without role restriction
+    Route::get('/organization/dashboard-test', [OrganizationDashboardController::class, 'testVolunteersData']);
+
+    Route::get('/organization/current-volunteers-detailed', [OrganizationDashboardController::class, 'getCurrentVolunteersDetailed']);
+    Route::get('/organization/recent-volunteers', [OrganizationDashboardController::class, 'getRecentlyEmployedVolunteers']);
+    Route::get('/organization/test-volunteers-data', [OrganizationDashboardController::class, 'testVolunteersData']);
+
+    // New volunteer management endpoints
+    Route::get('/organization/volunteers-list', [OrganizationDashboardController::class, 'getOrganizationVolunteersList']);
+    Route::get('/organization/volunteers/{volunteerId}/profile', [OrganizationDashboardController::class, 'getVolunteerProfile']);
 
     // Profile management
     Route::get('/organization/profile', [OrganizationProfileController::class, 'show']);
     Route::post('/organization/profile', [OrganizationProfileController::class, 'storeOrUpdate']);
+
+    // Organization Skills Management
+    Route::get('/organization/skills', [OrganizationSkillController::class, 'index']);
+    Route::get('/organization/skills/organization-specific', [OrganizationSkillController::class, 'organizationSkills']);
+    Route::post('/organization/skills', [OrganizationSkillController::class, 'store']);
+    Route::put('/organization/skills/{skill}', [OrganizationSkillController::class, 'update']);
+    Route::delete('/organization/skills/{skill}', [OrganizationSkillController::class, 'destroy']);
+    Route::patch('/organization/skills/{skill}/toggle-status', [OrganizationSkillController::class, 'toggleStatus']);
+    Route::get('/organization/skills/categories', [OrganizationSkillController::class, 'categories']);
+    Route::get('/organization/skills/proficiency-levels', [OrganizationSkillController::class, 'proficiencyLevels']);
 
     // Opportunity management
     Route::get('/opportunities', [OpportunityController::class, 'index']);
@@ -225,7 +245,31 @@ Route::middleware(['auth:sanctum', 'role:organization'])->group(function () {
     Route::get('/applications/{application}', [ApplicationController::class, 'show']);
     Route::put('/applications/{application}/respond', [ApplicationController::class, 'respond']);
 
-    // Task management
+    // Task management (new system)
+    Route::get('/opportunities/{opportunity}/tasks', [TaskController::class, 'index']);
+    Route::post('/opportunities/{opportunity}/tasks', [TaskController::class, 'store']);
+    Route::put('/tasks/{task}', [TaskController::class, 'update']);
+    Route::post('/tasks/{task}/complete', [TaskController::class, 'complete']);
+    Route::post('/tasks/{task}/assign-volunteers', [TaskController::class, 'assignVolunteers']);
+    Route::post('/tasks/{task}/reassign-volunteers', [TaskController::class, 'reassignVolunteers']);
+    Route::get('/current-volunteers', [TaskController::class, 'getCurrentVolunteers']);
+    Route::get('/recent-volunteers', [TaskController::class, 'getRecentlyEmployedVolunteers']);
+
+    // New task volunteer management endpoints
+    Route::get('/tasks/volunteers-with-tasks', [TaskController::class, 'getVolunteersWithTasks']);
+    Route::get('/tasks/volunteer-details/{applicationId}', [TaskController::class, 'getVolunteerTaskDetails']);
+
+    // Task progress tracking endpoints
+    Route::get('/tasks/{task}/progress', [TaskController::class, 'getTaskProgress']);
+    Route::get('/opportunities/{opportunity}/volunteers-progress', [TaskController::class, 'getOpportunityVolunteersProgress']);
+    Route::put('/applications/{application}/task-status', [TaskController::class, 'updateVolunteerTaskStatus']);
+
+    // Task progress tracking endpoints
+    Route::get('/tasks/{task}/progress', [TaskController::class, 'getTaskProgress']);
+    Route::get('/opportunities/{opportunity}/volunteers-progress', [TaskController::class, 'getOpportunityVolunteersProgress']);
+    Route::put('/applications/{application}/task-status', [TaskController::class, 'updateVolunteerTaskStatus']);
+
+    // Legacy task management (keeping for backward compatibility)
     // Set task status (completed/quit) -- only org/admin
     Route::post('/applications/{application}/task-status', [TaskStatusController::class, 'setStatus']);
 
@@ -252,6 +296,8 @@ Route::middleware(['auth:sanctum', 'role:organization'])->group(function () {
     Route::get('/messages/{partnerId}', [MessageController::class, 'getMessages']);
     Route::post('/messages/send', [MessageController::class, 'sendMessage']);
     Route::put('/messages/{message}/read', [MessageController::class, 'markAsRead']);
+
+
 });
 
 /*
@@ -322,8 +368,7 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     // Admin Feedback Management
     Route::get('admin/feedback', [FeedbackController::class, 'adminIndex']);
 
-    // Admin Reports
-    Route::get('admin/reports', [AdminDashboardController::class, 'reports']);
+
 });
 
 /*
@@ -479,6 +524,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/messages-alt/unread-count', [MessageController::class, 'unreadCount']);
     Route::get('/messages-alt/{partnerId}', [MessageController::class, 'getMessages']);
     Route::post('/messages-alt/send', [MessageController::class, 'sendMessage']);
+
+    // Test organization dashboard without role restriction
+    Route::get('/organization/dashboard-no-role', [OrganizationDashboardController::class, 'index']);
+
+    // Debug authentication endpoint
+    Route::get('/debug/auth', [OrganizationDashboardController::class, 'debugAuth']);
     Route::put('/messages-alt/{message}/read', [MessageController::class, 'markAsRead']);
 
     // Alternative feedback routes without role restrictions
@@ -488,12 +539,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/organization/feedback-received-alt', [FeedbackController::class, 'orgFeedbackHistory']);
     Route::get('/applications/{application}/feedback-status', [FeedbackController::class, 'getFeedbackStatus']);
 
-    // Alternative organization reports route
-    Route::get('/organization/reports-alt', [OrganizationDashboardController::class, 'reports']);
 
-    // Organization Reports
-    Route::get('/organization/reports', [OrganizationReportController::class, 'getReports']);
-    Route::get('/organization/reports/export', [OrganizationReportController::class, 'exportReport']);
 
     // Organization Task Management
     Route::post('/organization/applications/{applicationId}/task-status', [OrganizationReportController::class, 'updateTaskStatus']);
@@ -544,12 +590,12 @@ Route::middleware('auth:sanctum')->get('/test-volunteer-recommended', [Opportuni
 Route::get('/debug-skills', function () {
     try {
         $skillsCount = \App\Models\Skill::count();
-        $userSkillsCount = \DB::table('user_skills')->count();
+        $userSkillsCount = DB::table('user_skills')->count();
         $usersCount = \App\Models\User::count();
 
         // Check if skills table has required columns
-        $skillsColumns = \Schema::getColumnListing('skills');
-        $userSkillsColumns = \Schema::getColumnListing('user_skills');
+        $skillsColumns = Schema::getColumnListing('skills');
+        $userSkillsColumns = Schema::getColumnListing('user_skills');
 
         // Get first few skills as examples
         $sampleSkills = \App\Models\Skill::take(5)->get();
@@ -587,7 +633,7 @@ Route::get('/seed-skills', function () {
         }
 
         // Run the skill seeder
-        \Artisan::call('db:seed', ['--class' => 'SkillSeeder']);
+        Artisan::call('db:seed', ['--class' => 'SkillSeeder']);
 
         $newSkillsCount = \App\Models\Skill::count();
 

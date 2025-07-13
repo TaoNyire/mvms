@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Opportunity extends Model
 {
     protected $fillable = [
-        'organization_id', 'title', 'description', 'location', 'start_date', 'end_date', 'volunteers_needed'
+        'organization_id', 'title', 'description', 'location', 'start_date', 'end_date', 'volunteers_needed', 'status'
     ];
 
     public function skills()
@@ -24,6 +24,11 @@ class Opportunity extends Model
     public function applications()
     {
         return $this->hasMany(Application::class);
+    }
+
+    public function tasks()
+    {
+        return $this->hasMany(Task::class);
     }
 
     // Skill matches
@@ -48,5 +53,42 @@ class Opportunity extends Model
     public function getSkillsByCategory()
     {
         return $this->skills->groupBy('category');
+    }
+
+    // Helper methods for recruitment management
+    public function getAcceptedVolunteersCount()
+    {
+        return $this->applications()
+                   ->where('status', 'accepted')
+                   ->where('confirmation_status', 'confirmed')
+                   ->count();
+    }
+
+    public function isRecruitmentComplete()
+    {
+        return $this->getAcceptedVolunteersCount() >= $this->volunteers_needed;
+    }
+
+    public function closeRecruitment()
+    {
+        if ($this->isRecruitmentComplete()) {
+            $this->update(['status' => 'in_progress']);
+            return true;
+        }
+        return false;
+    }
+
+    public function getActiveTasksCount()
+    {
+        return $this->tasks()->where('status', 'active')->count();
+    }
+
+    public function getCurrentVolunteers()
+    {
+        return $this->applications()
+                   ->where('status', 'accepted')
+                   ->where('confirmation_status', 'confirmed')
+                   ->with(['volunteer.volunteerProfile', 'task'])
+                   ->get();
     }
 }

@@ -10,7 +10,11 @@ class Skill extends Model
         'name',
         'category',
         'description',
-        'is_active'
+        'is_active',
+        'organization_id',
+        'skill_type',
+        'required_proficiency_level',
+        'priority'
     ];
 
     protected $casts = [
@@ -18,6 +22,11 @@ class Skill extends Model
     ];
 
     // Relationships
+    public function organization()
+    {
+        return $this->belongsTo(User::class, 'organization_id');
+    }
+
     public function users()
     {
         return $this->belongsToMany(User::class, 'user_skills')
@@ -48,6 +57,33 @@ class Skill extends Model
         return $query->where('category', $category);
     }
 
+    public function scopeGlobal($query)
+    {
+        return $query->where('skill_type', 'global');
+    }
+
+    public function scopeOrganizationSpecific($query, $organizationId = null)
+    {
+        $query = $query->where('skill_type', 'organization_specific');
+
+        if ($organizationId) {
+            $query->where('organization_id', $organizationId);
+        }
+
+        return $query;
+    }
+
+    public function scopeForOrganization($query, $organizationId)
+    {
+        return $query->where(function($q) use ($organizationId) {
+            $q->where('skill_type', 'global')
+              ->orWhere(function($subQ) use ($organizationId) {
+                  $subQ->where('skill_type', 'organization_specific')
+                       ->where('organization_id', $organizationId);
+              });
+        });
+    }
+
     // Helper methods
     public static function getCategories()
     {
@@ -61,8 +97,32 @@ class Skill extends Model
             'organizational' => 'Organizational',
             'physical' => 'Physical',
             'language' => 'Language',
+            'custom' => 'Custom Skills',
             'other' => 'Other'
         ];
+    }
+
+    public static function getSkillTypes()
+    {
+        return [
+            'global' => 'Global Skills',
+            'organization_specific' => 'Organization Specific'
+        ];
+    }
+
+    public function isGlobal()
+    {
+        return $this->skill_type === 'global';
+    }
+
+    public function isOrganizationSpecific()
+    {
+        return $this->skill_type === 'organization_specific';
+    }
+
+    public function belongsToOrganization($organizationId)
+    {
+        return $this->organization_id == $organizationId;
     }
 
     public static function getProficiencyLevels()

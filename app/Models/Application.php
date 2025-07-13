@@ -7,9 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 class Application extends Model
 {
     protected $fillable = [
-        'volunteer_id', 'opportunity_id',
+        'volunteer_id', 'opportunity_id', 'task_id',
         'status', 'applied_at', 'responded_at',
-        'feedback_rating', 'feedback_comment'
+        'feedback_rating', 'feedback_comment',
+        'confirmation_status', 'confirmed_at'
     ];
 
     public function volunteer()
@@ -20,6 +21,11 @@ class Application extends Model
     public function opportunity()
     {
         return $this->belongsTo(Opportunity::class);
+    }
+
+    public function task()
+    {
+        return $this->belongsTo(Task::class);
     }
 
     public function taskStatus()

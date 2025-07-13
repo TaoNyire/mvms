@@ -79,5 +79,18 @@ class User extends Authenticatable
     {
         return $this->skills->groupBy('category');
     }
+
+    // Organization-specific skills relationship
+    public function organizationSkills()
+    {
+        return $this->hasMany(Skill::class, 'organization_id')
+                   ->where('skill_type', 'organization_specific');
+    }
+
+    // Get all skills available to this organization (global + organization-specific)
+    public function availableSkills()
+    {
+        return Skill::forOrganization($this->id)->active();
+    }
 }
 

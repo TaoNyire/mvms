@@ -6,7 +6,10 @@ use App\Models\Application;
 use App\Models\Opportunity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Log;
 use App\Notifications\ApplicationStatusNotification;
+use App\Notifications\NewApplicationNotification;
+use App\Services\TaskAssignmentService;
 
 class ApplicationController extends Controller
 {
@@ -79,8 +82,8 @@ class ApplicationController extends Controller
         // Notify organization of new application
         $organization = $opportunity->organization; // assumes $opportunity->organization returns User model
         if ($organization) {
-            // You might want to create a new notification for new applications, but for now using ApplicationStatusNotification
-            $organization->notify(new ApplicationStatusNotification($application));
+            // Send notification to organization about new application
+            $organization->notify(new NewApplicationNotification($application));
         }
 
         return response()->json($application->load('volunteer.volunteerProfile'), 201);
@@ -229,9 +232,16 @@ class ApplicationController extends Controller
 
         $application->status = $request->status;
         $application->responded_at = now();
+
+        // Auto-confirm accepted applications for immediate volunteer availability
+        if ($request->status === 'accepted') {
+            $application->confirmation_status = 'confirmed';
+            $application->confirmed_at = now();
+        }
+
         $application->save();
 
-        // If accepted, check if we need to update opportunity status
+        // If accepted, check if we need to update opportunity status and assign tasks
         if ($request->status === 'accepted') {
             $acceptedCount = Application::where('opportunity_id', $application->opportunity_id)
                 ->where('status', 'accepted')
@@ -241,6 +251,10 @@ class ApplicationController extends Controller
                 $opportunity->status = 'in_progress';
                 $opportunity->save();
             }
+
+            // Automatically assign tasks to the accepted volunteer
+            $taskAssignmentService = new TaskAssignmentService();
+            $taskAssignmentService->autoAssignTasksToVolunteer($application);
         }
 
         // Notify volunteer (email and database)
@@ -440,4 +454,6 @@ class ApplicationController extends Controller
             'application' => $application->load(['volunteer', 'opportunity'])
         ]);
     }
+
+
 }

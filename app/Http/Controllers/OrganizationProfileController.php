@@ -10,10 +10,37 @@ class OrganizationProfileController extends Controller
     // Fetch authenticated organization's profile
     public function show(Request $request)
 {
-    $profile = $request->user()->organizationProfile;
-    if (!$profile) {
-        return response()->json(['message' => 'Profile not found'], 404);
-    }
+        $user = $request->user();
+        $profile = $user->organizationProfile;
+
+        if (!$profile) {
+            // Return a default profile structure with user information
+            return response()->json([
+                'id' => null,
+                'user_id' => $user->id,
+                'org_name' => $user->name,
+                'description' => null,
+                'mission' => null,
+                'vision' => null,
+                'sector' => null,
+                'org_type' => null,
+                'registration_number' => null,
+                'is_registered' => false,
+                'physical_address' => null,
+                'district' => null,
+                'region' => null,
+                'email' => $user->email,
+                'phone' => null,
+                'website' => null,
+                'focus_areas' => null,
+                'active' => true,
+                'status' => 'incomplete',
+                'completion' => 5, // Very low completion since only basic info is available
+                'profile_exists' => false,
+                'created_at' => null,
+                'updated_at' => null,
+            ]);
+        }
 
     // Fields to check
     $fields = [
@@ -29,11 +56,12 @@ class OrganizationProfileController extends Controller
     }
     $completion = round(($filled / count($fields)) * 100);
 
-    // Return with completion percentage
-    $data = $profile->toArray();
-    $data['completion'] = $completion;
+        // Return with completion percentage
+        $data = $profile->toArray();
+        $data['completion'] = $completion;
+        $data['profile_exists'] = true;
 
-    return response()->json($data);
+        return response()->json($data);
 }
 
     // Store or update authenticated organization's profile
