@@ -2,194 +2,248 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\User;
-use App\Models\Application;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Services\NotificationService;
 
 class MessageController extends Controller
 {
-    /**
-     * Get all conversations for the authenticated user
-     */
-    public function conversations(Request $request)
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
     {
-        $userId = $request->user()->id;
-
-        // Get all messages where user is either sender or receiver
-        $messages = Message::where('sender_id', $userId)
-            ->orWhere('receiver_id', $userId)
-            ->with(['sender', 'receiver'])
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // Group by conversation partner
-        $conversations = [];
-        $seen = [];
-
-        foreach ($messages as $message) {
-            $partnerId = $message->sender_id == $userId ? $message->receiver_id : $message->sender_id;
-
-            if (!in_array($partnerId, $seen)) {
-                $seen[] = $partnerId;
-                $partner = $message->sender_id == $userId ? $message->receiver : $message->sender;
-
-                // Count unread messages from this partner
-                $unreadCount = Message::where('sender_id', $partnerId)
-                    ->where('receiver_id', $userId)
-                    ->where('is_read', false)
-                    ->count();
-
-                $conversations[] = [
-                    'partner' => [
-                        'id' => $partner->id,
-                        'name' => $partner->name,
-                        'email' => $partner->email,
-                        'role' => $partner->roles->first()->name ?? 'user'
-                    ],
-                    'last_message' => [
-                        'id' => $message->id,
-                        'message' => $message->message,
-                        'subject' => $message->subject,
-                        'created_at' => $message->created_at,
-                        'sender_id' => $message->sender_id,
-                        'is_from_me' => $message->sender_id == $userId
-                    ],
-                    'unread_count' => $unreadCount,
-                    'last_message_at' => $message->created_at
-                ];
-            }
-        }
-
-        return response()->json([
-            'conversations' => $conversations
-        ]);
+        $this->notificationService = $notificationService;
     }
 
     /**
-     * Get messages between authenticated user and another user
+     * Display user's conversations
      */
-    public function getMessages(Request $request, $partnerId)
+    public function index(Request $request)
     {
-        $userId = $request->user()->id;
-        
-        $messages = Message::betweenUsers($userId, $partnerId)
-            ->with(['sender', 'receiver', 'application'])
+        $user = Auth::user();
+
+        $conversations = Conversation::forUser($user)
+            ->active()
+            ->with(['lastMessage', 'lastActivityUser'])
+            ->orderBy('last_activity_at', 'desc')
+            ->paginate(20);
+
+        if ($request->expectsJson()) {
+            return response()->json(['conversations' => $conversations]);
+        }
+
+        return view('messages.index', compact('conversations'));
+    }
+
+    /**
+     * Show specific conversation
+     */
+    public function show(Conversation $conversation)
+    {
+        $user = Auth::user();
+
+        // Check if user is participant
+        if (!$conversation->hasParticipant($user)) {
+            abort(403, 'You are not a participant in this conversation.');
+        }
+
+        // Mark messages as read
+        $conversation->markAsReadForUser($user);
+
+        // Load messages with pagination
+        $messages = $conversation->messages()
+            ->with(['sender', 'replyTo'])
             ->orderBy('created_at', 'asc')
             ->paginate(50);
 
-        // Mark messages as read
-        Message::where('sender_id', $partnerId)
-            ->where('receiver_id', $userId)
-            ->where('is_read', false)
-            ->update([
-                'is_read' => true,
-                'read_at' => now()
-            ]);
+        // Get participants
+        $participants = $conversation->participants();
 
-        return response()->json($messages);
+        return view('messages.show', compact('conversation', 'messages', 'participants'));
     }
 
     /**
-     * Send a new message
+     * Start new conversation
      */
-    public function sendMessage(Request $request)
+    public function create(Request $request)
     {
-        $request->validate([
-            'receiver_id' => 'required|exists:users,id',
-            'subject' => 'nullable|string|max:255',
-            'message' => 'required|string',
-            'application_id' => 'nullable|exists:applications,id',
-            'message_type' => 'nullable|in:general,application_related,task_update,feedback_request'
+        $user = Auth::user();
+
+        // Get potential recipients based on user role
+        if ($user->hasRole('volunteer')) {
+            // Volunteers can message organizations they've applied to or been assigned by
+            $recipients = User::whereHas('roles', function($query) {
+                $query->where('name', 'organization');
+            })->get();
+        } else {
+            // Organizations can message volunteers who have applied or been assigned
+            $recipients = User::whereHas('roles', function($query) {
+                $query->where('name', 'volunteer');
+            })->get();
+        }
+
+        return view('messages.create', compact('recipients'));
+    }
+
+    /**
+     * Store new conversation
+     */
+    public function store(Request $request)
+    {
+        $user = Auth::user();
+
+        $rules = [
+            'recipient_id' => 'required|exists:users,id',
+            'message' => 'required|string|min:1|max:1000',
+            'title' => 'nullable|string|max:255',
+        ];
+
+        $validatedData = $request->validate($rules);
+
+        $recipient = User::findOrFail($validatedData['recipient_id']);
+
+        // Create or get existing direct conversation
+        $conversation = Conversation::createDirect($user, $recipient);
+
+        // Send message
+        $message = $conversation->sendMessage($user, $validatedData['message']);
+
+        // Send notification to recipient
+        $this->notificationService->notifyNewMessage($recipient, $user, $validatedData['message']);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'conversation' => $conversation,
+                'message' => $message
+            ]);
+        }
+
+        return redirect()->route('messages.show', $conversation)
+            ->with('success', 'Message sent successfully!');
+    }
+
+    /**
+     * Send message to existing conversation
+     */
+    public function sendMessage(Request $request, Conversation $conversation)
+    {
+        $user = Auth::user();
+
+        // Check if user is participant
+        if (!$conversation->hasParticipant($user)) {
+            abort(403, 'You are not a participant in this conversation.');
+        }
+
+        $rules = [
+            'message' => 'required|string|min:1|max:1000',
+            'reply_to_id' => 'nullable|exists:messages,id',
+        ];
+
+        $validatedData = $request->validate($rules);
+
+        // Send message
+        $message = $conversation->sendMessage($user, $validatedData['message'], [
+            'reply_to_id' => $validatedData['reply_to_id'] ?? null,
         ]);
 
-        $message = Message::create([
-            'sender_id' => $request->user()->id,
-            'receiver_id' => $request->receiver_id,
-            'application_id' => $request->application_id,
-            'subject' => $request->subject,
-            'message' => $request->message,
-            'message_type' => $request->message_type ?? 'general'
-        ]);
+        // Notify other participants
+        $participants = $conversation->participants()->where('id', '!=', $user->id);
+        foreach ($participants as $participant) {
+            $this->notificationService->notifyNewMessage($participant, $user, $validatedData['message'], $conversation);
+        }
 
-        $message->load(['sender', 'receiver', 'application']);
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $message->load('sender')
+            ]);
+        }
+
+        return back()->with('success', 'Message sent!');
+    }
+
+    /**
+     * React to message
+     */
+    public function react(Request $request, Message $message)
+    {
+        $user = Auth::user();
+
+        // Check if user is participant in conversation
+        if (!$message->conversation->hasParticipant($user)) {
+            abort(403, 'You are not a participant in this conversation.');
+        }
+
+        $rules = [
+            'emoji' => 'required|string|max:10',
+        ];
+
+        $validatedData = $request->validate($rules);
+
+        $message->addReaction($user, $validatedData['emoji']);
 
         return response()->json([
-            'message' => 'Message sent successfully',
-            'data' => $message
-        ], 201);
+            'success' => true,
+            'reactions' => $message->fresh()->reaction_counts
+        ]);
+    }
+
+    /**
+     * Remove reaction from message
+     */
+    public function removeReaction(Message $message)
+    {
+        $user = Auth::user();
+
+        // Check if user is participant in conversation
+        if (!$message->conversation->hasParticipant($user)) {
+            abort(403, 'You are not a participant in this conversation.');
+        }
+
+        $message->removeReaction($user);
+
+        return response()->json([
+            'success' => true,
+            'reactions' => $message->fresh()->reaction_counts
+        ]);
+    }
+
+    /**
+     * Archive conversation
+     */
+    public function archive(Conversation $conversation)
+    {
+        $user = Auth::user();
+
+        // Check if user is participant
+        if (!$conversation->hasParticipant($user)) {
+            abort(403, 'You are not a participant in this conversation.');
+        }
+
+        $conversation->archive();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Conversation archived.'
+        ]);
     }
 
     /**
      * Get unread message count
      */
-    public function unreadCount(Request $request)
+    public function unreadCount()
     {
-        $count = Message::where('receiver_id', $request->user()->id)
-            ->where('is_read', false)
-            ->count();
+        $user = Auth::user();
 
-        return response()->json(['unread_count' => $count]);
-    }
+        $count = Conversation::forUser($user)
+            ->active()
+            ->get()
+            ->sum('unread_count');
 
-    /**
-     * Mark specific message as read
-     */
-    public function markAsRead(Request $request, Message $message)
-    {
-        // Ensure user can only mark their own received messages as read
-        if ($message->receiver_id !== $request->user()->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        $message->markAsRead();
-
-        return response()->json(['message' => 'Message marked as read']);
-    }
-
-    /**
-     * Get contacts (users that can be messaged)
-     */
-    public function getContacts(Request $request)
-    {
-        $currentUser = $request->user();
-        $currentUserRole = $currentUser->roles->first()->name ?? 'user';
-
-        // Organizations can message volunteers who applied to their opportunities
-        if ($currentUserRole === 'organization') {
-            $contacts = User::whereHas('roles', function($query) {
-                $query->where('name', 'volunteer');
-            })
-            ->whereHas('applications.opportunity', function($query) use ($currentUser) {
-                $query->where('organization_id', $currentUser->id);
-            })
-            ->with('volunteerProfile')
-            ->distinct()
-            ->get();
-        }
-        // Volunteers can message organizations they applied to
-        elseif ($currentUserRole === 'volunteer') {
-            $contacts = User::whereHas('roles', function($query) {
-                $query->where('name', 'organization');
-            })
-            ->whereHas('opportunities.applications', function($query) use ($currentUser) {
-                $query->where('volunteer_id', $currentUser->id);
-            })
-            ->with('organizationProfile')
-            ->distinct()
-            ->get();
-        }
-        // Admins can message everyone
-        elseif ($currentUserRole === 'admin') {
-            $contacts = User::where('id', '!=', $currentUser->id)
-                ->with(['volunteerProfile', 'organizationProfile', 'roles'])
-                ->get();
-        }
-        else {
-            $contacts = collect();
-        }
-
-        return response()->json(['contacts' => $contacts]);
+        return response()->json(['count' => $count]);
     }
 }

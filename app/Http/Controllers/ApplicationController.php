@@ -2,458 +2,241 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Application;
 use App\Models\Opportunity;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Log;
-use App\Notifications\ApplicationStatusNotification;
-use App\Notifications\NewApplicationNotification;
-use App\Services\TaskAssignmentService;
 
 class ApplicationController extends Controller
 {
     /**
-     * Volunteer applies to an opportunity
-     * - Prevents duplicate applications
-     * - Checks volunteer application limit if already recruited
-     * - Checks if opportunity is still hiring
-     * - Checks if opportunity is already in progress or completed
-     * - Notifies organization of new application (with volunteer profile, CV & qualifications)
+     * Apply for an opportunity (Volunteer)
      */
-    public function apply(Request $request, $opportunity_id)
+    public function store(Request $request, Opportunity $opportunity)
     {
-        $user = $request->user();
+        $user = Auth::user();
 
-        // Check if already applied
-        $alreadyApplied = Application::where('volunteer_id', $user->id)
-            ->where('opportunity_id', $opportunity_id)
-            ->exists();
-
-        if ($alreadyApplied) {
-            return response()->json(['message' => 'Already applied to this opportunity'], 409);
+        // Check if opportunity is still accepting applications
+        if (!$opportunity->is_active) {
+            return back()->with('error', 'This opportunity is no longer accepting applications.');
         }
 
-        // Check if opportunity exists and is still hiring
-        $opportunity = Opportunity::findOrFail($opportunity_id);
-
-        // Exclude opportunities that are in progress or completed
-        if (in_array($opportunity->status, ['in_progress', 'completed'])) {
-            return response()->json(['message' => 'This opportunity is no longer accepting applications.'], 403);
+        // Check if opportunity is full
+        if ($opportunity->is_full) {
+            return back()->with('error', 'This opportunity is already full.');
         }
 
-        // Ensure not over-hired
-        $acceptedCount = Application::where('opportunity_id', $opportunity_id)
-            ->where('status', 'accepted')
-            ->count();
-        if ($acceptedCount >= $opportunity->volunteers_needed) {
-            return response()->json(['message' => 'This opportunity has reached the required number of volunteers.'], 403);
+        // Check if user already applied
+        $existingApplication = Application::where('opportunity_id', $opportunity->id)
+            ->where('volunteer_id', $user->id)
+            ->first();
+
+        if ($existingApplication) {
+            return back()->with('error', 'You have already applied for this opportunity.');
         }
 
-        // Check if volunteer is already recruited (accepted) elsewhere
-        $recruited = Application::where('volunteer_id', $user->id)
-            ->where('status', 'accepted')
-            ->whereHas('opportunity', function($q) {
-                $q->whereIn('status', ['in_progress']);
-            })
-            ->count();
+        $rules = [
+            'message' => 'required|string|min:50|max:1000',
+            'relevant_experience' => 'nullable|string|max:1000',
+            'availability_details' => 'nullable|string|max:500',
+            'agrees_to_terms' => 'required|accepted',
+        ];
 
-        // If working on another org's in-progress opportunity, only 2 applications allowed
-        if ($recruited) {
-            $pendingAppsCount = Application::where('volunteer_id', $user->id)
-                ->whereIn('status', ['pending', 'accepted'])
-                ->whereHas('opportunity', function($q) {
-                    $q->whereIn('status', ['pending', 'in_progress']);
-                })
-                ->count();
-
-            if ($pendingAppsCount >= 2) {
-                return response()->json(['message' => 'You can only apply to 2 opportunities while working on another organization\'s task.'], 403);
-            }
-        }
+        $validatedData = $request->validate($rules);
 
         $application = Application::create([
+            'opportunity_id' => $opportunity->id,
             'volunteer_id' => $user->id,
-            'opportunity_id' => $opportunity_id,
-            'status' => 'pending',
-            'applied_at' => now()
+            'message' => $validatedData['message'],
+            'relevant_experience' => $validatedData['relevant_experience'],
+            'availability_details' => $validatedData['availability_details'] ? [$validatedData['availability_details']] : null,
+            'agrees_to_terms' => true,
+            'applied_at' => now(),
         ]);
 
-        // Notify organization of new application
-        $organization = $opportunity->organization; // assumes $opportunity->organization returns User model
-        if ($organization) {
-            // Send notification to organization about new application
-            $organization->notify(new NewApplicationNotification($application));
+        // Increment applications count
+        $opportunity->increment('applications_count');
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Application submitted successfully!',
+                'application' => $application
+            ]);
         }
 
-        return response()->json($application->load('volunteer.volunteerProfile'), 201);
+        return back()->with('success', 'Your application has been submitted successfully! The organization will review it and get back to you.');
     }
 
     /**
-     * Organization views all applications to their opportunities
+     * Show application details
      */
-    public function orgApplications(Request $request)
+    public function show(Application $application)
     {
-        $user = $request->user();
-        // Eager load volunteer's profile (with CV & qualifications)
-        $applications = Application::whereHas('opportunity', function($q) use ($user) {
-                $q->where('organization_id', $user->id);
-            })
-            ->with(['volunteer.volunteerProfile.skills', 'opportunity.skills', 'taskStatus'])
-            ->latest('applied_at')
-            ->get()
-            ->map(function ($application) {
-                return [
-                    'id' => $application->id,
-                    'status' => $application->status,
-                    'applied_at' => $application->applied_at,
-                    'responded_at' => $application->responded_at,
-                    'created_at' => $application->created_at,
-                    'updated_at' => $application->updated_at,
+        $user = Auth::user();
 
-                    // Volunteer information
-                    'volunteer_id' => $application->volunteer_id,
-                    'volunteer_name' => $application->volunteer->name ?? 'Unknown Volunteer',
-                    'volunteer_email' => $application->volunteer->email ?? 'No email',
-                    'volunteer_phone' => $application->volunteer->volunteerProfile->phone ?? null,
-                    'volunteer_location' => $application->volunteer->volunteerProfile->location ?? null,
-                    'volunteer_bio' => $application->volunteer->volunteerProfile->bio ?? null,
-                    'volunteer_skills' => $application->volunteer->volunteerProfile ?
-                        $application->volunteer->volunteerProfile->skills->pluck('name')->toArray() : [],
+        // Check if user can view this application
+        if ($application->volunteer_id !== $user->id &&
+            $application->opportunity->organization_id !== $user->id) {
+            abort(403, 'Unauthorized access to this application.');
+        }
 
-                    // Opportunity information
-                    'opportunity_id' => $application->opportunity_id,
-                    'opportunity_title' => $application->opportunity->title ?? 'Unknown Opportunity',
-                    'opportunity_description' => $application->opportunity->description ?? null,
-                    'opportunity_location' => $application->opportunity->location ?? null,
-                    'opportunity_start_date' => $application->opportunity->start_date ?? null,
-                    'opportunity_end_date' => $application->opportunity->end_date ?? null,
-                    'opportunity_volunteers_needed' => $application->opportunity->volunteers_needed ?? null,
-                    'opportunity_skills' => $application->opportunity->skills->pluck('name')->toArray() ?? [],
+        $application->load(['opportunity', 'volunteer.volunteerProfile']);
 
-                    // Task status
-                    'task_status' => $application->taskStatus ? [
-                        'status' => $application->taskStatus->status,
-                        'started_at' => $application->taskStatus->started_at,
-                        'completed_at' => $application->taskStatus->completed_at,
-                    ] : null,
-
-                    // Relationships for frontend compatibility
-                    'volunteer' => $application->volunteer,
-                    'opportunity' => $application->opportunity,
-                ];
-            });
-
-        return response()->json([
-            'data' => $applications,
-            'total' => $applications->count(),
-        ]);
+        return view('applications.show', compact('application'));
     }
 
     /**
-     * Show a single application (for organization)
+     * Accept an application (Organization)
      */
-    public function show(Request $request, $application_id)
+    public function accept(Request $request, Application $application)
     {
-        $user = $request->user();
-        $application = Application::whereHas('opportunity', function($q) use ($user) {
-                $q->where('organization_id', $user->id);
-            })
-            ->with(['volunteer.volunteerProfile.skills', 'opportunity.skills', 'taskStatus'])
-            ->findOrFail($application_id);
+        $user = Auth::user();
 
-        return response()->json([
-            'id' => $application->id,
-            'status' => $application->status,
-            'applied_at' => $application->applied_at,
-            'responded_at' => $application->responded_at,
-            'created_at' => $application->created_at,
-            'updated_at' => $application->updated_at,
+        // Check if user owns the opportunity
+        if ($application->opportunity->organization_id !== $user->id) {
+            abort(403, 'Unauthorized access to this application.');
+        }
 
-            // Volunteer information
-            'volunteer_id' => $application->volunteer_id,
-            'volunteer_name' => $application->volunteer->name ?? 'Unknown Volunteer',
-            'volunteer_email' => $application->volunteer->email ?? 'No email',
-            'volunteer_phone' => $application->volunteer->volunteerProfile->phone ?? null,
-            'volunteer_location' => $application->volunteer->volunteerProfile->location ?? null,
-            'volunteer_bio' => $application->volunteer->volunteerProfile->bio ?? null,
-            'volunteer_skills' => $application->volunteer->volunteerProfile ?
-                $application->volunteer->volunteerProfile->skills->pluck('name')->toArray() : [],
+        // Check if opportunity is full
+        if ($application->opportunity->is_full) {
+            return back()->with('error', 'This opportunity is already full.');
+        }
 
-            // Opportunity information
-            'opportunity_id' => $application->opportunity_id,
-            'opportunity_title' => $application->opportunity->title ?? 'Unknown Opportunity',
-            'opportunity_description' => $application->opportunity->description ?? null,
-            'opportunity_location' => $application->opportunity->location ?? null,
-            'opportunity_start_date' => $application->opportunity->start_date ?? null,
-            'opportunity_end_date' => $application->opportunity->end_date ?? null,
-            'opportunity_volunteers_needed' => $application->opportunity->volunteers_needed ?? null,
-            'opportunity_skills' => $application->opportunity->skills->pluck('name')->toArray() ?? [],
+        $notes = $request->input('notes');
+        $application->accept($notes);
 
-            // Task status
-            'task_status' => $application->taskStatus ? [
-                'status' => $application->taskStatus->status,
-                'started_at' => $application->taskStatus->started_at,
-                'completed_at' => $application->taskStatus->completed_at,
-            ] : null,
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Application accepted successfully!',
+                'application' => $application
+            ]);
+        }
 
-            // Relationships for frontend compatibility
-            'volunteer' => $application->volunteer,
-            'opportunity' => $application->opportunity,
-        ]);
+        return back()->with('success', 'Application accepted! The volunteer has been notified.');
     }
 
     /**
-     * Organization accepts or rejects an application (update status + responded_at)
-     * Triggers notification to volunteer
-     * If required number of volunteers reached, set opportunity status to in_progress
+     * Reject an application (Organization)
      */
-    public function respond(Request $request, $application_id)
+    public function reject(Request $request, Application $application)
     {
-        $request->validate(['status' => 'required|in:accepted,rejected']);
+        $user = Auth::user();
 
-        $orgUser = $request->user();
-        $application = Application::with(['opportunity', 'volunteer.volunteerProfile'])->findOrFail($application_id);
-
-        // Only allow if this org owns the opportunity
-        if ($application->opportunity->organization_id !== $orgUser->id) {
-            return response()->json(['message' => 'Unauthorized'], 403);
+        // Check if user owns the opportunity
+        if ($application->opportunity->organization_id !== $user->id) {
+            abort(403, 'Unauthorized access to this application.');
         }
 
-        // If accepting, ensure not over-hired
-        if ($request->status === 'accepted') {
-            $acceptedCount = Application::where('opportunity_id', $application->opportunity_id)
-                ->where('status', 'accepted')
-                ->count();
-            if ($acceptedCount >= $application->opportunity->volunteers_needed) {
-                return response()->json(['message' => 'This opportunity has already filled all volunteer positions.'], 403);
-            }
+        $reason = $request->input('reason');
+        $application->reject($reason);
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Application rejected.',
+                'application' => $application
+            ]);
         }
 
-        $application->status = $request->status;
-        $application->responded_at = now();
-
-        // Auto-confirm accepted applications for immediate volunteer availability
-        if ($request->status === 'accepted') {
-            $application->confirmation_status = 'confirmed';
-            $application->confirmed_at = now();
-        }
-
-        $application->save();
-
-        // If accepted, check if we need to update opportunity status and assign tasks
-        if ($request->status === 'accepted') {
-            $acceptedCount = Application::where('opportunity_id', $application->opportunity_id)
-                ->where('status', 'accepted')
-                ->count();
-            $opportunity = $application->opportunity;
-            if ($acceptedCount >= $opportunity->volunteers_needed && $opportunity->status !== 'completed') {
-                $opportunity->status = 'in_progress';
-                $opportunity->save();
-            }
-
-            // Automatically assign tasks to the accepted volunteer
-            $taskAssignmentService = new TaskAssignmentService();
-            $taskAssignmentService->autoAssignTasksToVolunteer($application);
-        }
-
-        // Notify volunteer (email and database)
-        $application->volunteer->notify(new ApplicationStatusNotification($application));
-
-        return response()->json($application);
+        return back()->with('success', 'Application rejected. The volunteer has been notified.');
     }
 
     /**
-     * Volunteer views all their applications
+     * Withdraw an application (Volunteer)
      */
-    public function myApplications(Request $request)
+    public function withdraw(Application $application)
     {
-        $user = $request->user();
+        $user = Auth::user();
+
+        // Check if user owns this application
+        if ($application->volunteer_id !== $user->id) {
+            abort(403, 'Unauthorized access to this application.');
+        }
+
+        try {
+            $application->withdraw();
+            return back()->with('success', 'Application withdrawn successfully.');
+        } catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+    }
+
+    /**
+     * List applications for volunteer
+     */
+    public function myApplications()
+    {
+        $user = Auth::user();
+
         $applications = Application::where('volunteer_id', $user->id)
-            ->with(['opportunity.organization', 'opportunity.skills'])
-            ->latest('applied_at')
-            ->get()
-            ->map(function ($application) {
-                return [
-                    'id' => $application->id,
-                    'status' => $application->status,
-                    'applied_at' => $application->applied_at,
-                    'responded_at' => $application->responded_at,
-                    'created_at' => $application->created_at,
-                    'updated_at' => $application->updated_at,
+            ->with(['opportunity.organization'])
+            ->orderBy('applied_at', 'desc')
+            ->paginate(10);
 
-                    // Opportunity information
-                    'opportunity' => [
-                        'id' => $application->opportunity->id,
-                        'title' => $application->opportunity->title,
-                        'description' => $application->opportunity->description,
-                        'location' => $application->opportunity->location,
-                        'start_date' => $application->opportunity->start_date,
-                        'end_date' => $application->opportunity->end_date,
-                        'volunteers_needed' => $application->opportunity->volunteers_needed,
-                        'status' => $application->opportunity->status ?? 'active',
-                        'skills' => $application->opportunity->skills->pluck('name')->toArray(),
-
-                        // Organization information
-                        'organization' => [
-                            'id' => $application->opportunity->organization->id ?? null,
-                            'name' => $application->opportunity->organization->name ?? 'Unknown Organization',
-                            'email' => $application->opportunity->organization->email ?? null,
-                        ]
-                    ]
-                ];
-            });
-
-        return response()->json([
-            'data' => $applications,
-            'total' => $applications->count()
-        ]);
+        return view('volunteer.applications.index', compact('applications'));
     }
 
     /**
-     * Volunteer withdraws an application
-     * - Only if status is pending
+     * List applications for organization's opportunities
      */
-    public function withdraw(Request $request, $application_id)
+    public function organizationApplications()
     {
-        $application = Application::findOrFail($application_id);
+        $user = Auth::user();
 
-        // Only allow withdrawal if application is pending
-        if ($application->status !== 'pending') {
-            return response()->json(['message' => 'Cannot withdraw this application'], 403);
-        }
+        $applications = Application::whereHas('opportunity', function($query) use ($user) {
+                $query->where('organization_id', $user->id);
+            })
+            ->with(['opportunity', 'volunteer.volunteerProfile'])
+            ->orderBy('applied_at', 'desc')
+            ->paginate(15);
 
-        $application->delete();
-
-        return response()->json(['message' => 'Application withdrawn successfully']);
+        return view('organization.applications.index', compact('applications'));
     }
 
     /**
-     * Volunteer confirms or rejects accepted application
+     * Bulk actions for applications (Organization)
      */
-    public function confirm(Request $request, $application_id)
+    public function bulkAction(Request $request)
     {
-        $user = $request->user();
-        $request->validate(['confirmation_status' => 'required|in:confirmed,rejected']);
+        $user = Auth::user();
 
-        $application = Application::where('id', $application_id)
-            ->where('volunteer_id', $user->id)
-            ->where('status', 'accepted')
-            ->where('confirmation_status', 'pending')
-            ->firstOrFail();
+        $rules = [
+            'action' => 'required|in:accept,reject',
+            'application_ids' => 'required|array',
+            'application_ids.*' => 'exists:applications,id',
+            'notes' => 'nullable|string',
+            'reason' => 'nullable|string',
+        ];
 
-        $application->confirmation_status = $request->confirmation_status;
-        $application->confirmed_at = now();
-        if ($request->confirmation_status === 'rejected') {
-            // Free up the slot
-            $application->status = 'rejected';
-        }
-        $application->save();
+        $validatedData = $request->validate($rules);
 
-        return response()->json($application);
-    }
+        $applications = Application::whereIn('id', $validatedData['application_ids'])
+            ->whereHas('opportunity', function($query) use ($user) {
+                $query->where('organization_id', $user->id);
+            })
+            ->get();
 
-    /**
-     * Admin: Get all applications with pagination and filtering
-     */
-    public function adminIndex(Request $request)
-    {
-        $query = Application::with([
-                'volunteer.volunteerProfile.skills',
-                'opportunity.organization.organizationProfile',
-                'opportunity.skills',
-                'taskStatus'
-            ])
-            ->orderBy('created_at', 'desc');
+        $successCount = 0;
 
-        if ($request->status) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->search) {
-            $query->whereHas('volunteer', function($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('email', 'like', '%' . $request->search . '%');
-            })->orWhereHas('opportunity', function($q) use ($request) {
-                $q->where('title', 'like', '%' . $request->search . '%');
-            })->orWhereHas('opportunity.organization', function($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->search . '%');
-            });
+        foreach ($applications as $application) {
+            try {
+                if ($validatedData['action'] === 'accept') {
+                    if (!$application->opportunity->is_full) {
+                        $application->accept($validatedData['notes'] ?? null);
+                        $successCount++;
+                    }
+                } else {
+                    $application->reject($validatedData['reason'] ?? null);
+                    $successCount++;
+                }
+            } catch (\Exception $e) {
+                \Log::error("Failed to {$validatedData['action']} application {$application->id}: " . $e->getMessage());
+            }
         }
 
-        $applications = $query->get()->map(function ($application) {
-            return [
-                'id' => $application->id,
-                'status' => $application->status,
-                'applied_at' => $application->applied_at,
-                'responded_at' => $application->responded_at,
-                'created_at' => $application->created_at,
-                'updated_at' => $application->updated_at,
-
-                // Volunteer information
-                'volunteer_id' => $application->volunteer_id,
-                'volunteer_name' => $application->volunteer->name ?? 'Unknown Volunteer',
-                'volunteer_email' => $application->volunteer->email ?? 'No email',
-                'volunteer_phone' => $application->volunteer->volunteerProfile->phone ?? null,
-                'volunteer_location' => $application->volunteer->volunteerProfile->location ?? null,
-                'volunteer_bio' => $application->volunteer->volunteerProfile->bio ?? null,
-                'volunteer_skills' => $application->volunteer->volunteerProfile ?
-                    $application->volunteer->volunteerProfile->skills->pluck('name')->toArray() : [],
-
-                // Opportunity information
-                'opportunity_id' => $application->opportunity_id,
-                'opportunity_title' => $application->opportunity->title ?? 'Unknown Opportunity',
-                'opportunity_description' => $application->opportunity->description ?? null,
-                'opportunity_location' => $application->opportunity->location ?? null,
-                'opportunity_start_date' => $application->opportunity->start_date ?? null,
-                'opportunity_end_date' => $application->opportunity->end_date ?? null,
-                'opportunity_volunteers_needed' => $application->opportunity->volunteers_needed ?? null,
-                'opportunity_skills' => $application->opportunity->skills->pluck('name')->toArray() ?? [],
-
-                // Organization information
-                'organization_id' => $application->opportunity->organization_id ?? null,
-                'organization_name' => $application->opportunity->organization->name ?? 'Unknown Organization',
-                'organization_email' => $application->opportunity->organization->email ?? null,
-                'organization_profile_name' => $application->opportunity->organization->organizationProfile->org_name ?? null,
-
-                // Task status
-                'task_status' => $application->taskStatus ? [
-                    'status' => $application->taskStatus->status,
-                    'started_at' => $application->taskStatus->started_at,
-                    'completed_at' => $application->taskStatus->completed_at,
-                ] : null,
-
-                // Relationships for frontend compatibility
-                'volunteer' => $application->volunteer,
-                'opportunity' => $application->opportunity,
-            ];
-        });
-
-        return response()->json([
-            'data' => $applications,
-            'total' => $applications->count(),
-            'current_page' => 1,
-            'last_page' => 1,
-            'per_page' => $applications->count(),
-        ]);
+        $action = $validatedData['action'] === 'accept' ? 'accepted' : 'rejected';
+        return back()->with('success', "{$successCount} applications {$action} successfully.");
     }
-
-    /**
-     * Admin: Update application status
-     */
-    public function updateStatus(Request $request, Application $application)
-    {
-        $data = $request->validate([
-            'status' => 'required|in:pending,accepted,rejected,completed'
-        ]);
-
-        $application->update($data);
-
-        return response()->json([
-            'message' => 'Application status updated successfully',
-            'application' => $application->load(['volunteer', 'opportunity'])
-        ]);
-    }
-
-
 }

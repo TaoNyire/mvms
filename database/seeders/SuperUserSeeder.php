@@ -19,10 +19,10 @@ class SuperUserSeeder extends Seeder
 
         // Create the admin user (customize these details as needed)
         $admin = User::firstOrCreate([
-            'email' => 'mvmsadmin@gmail.com',
+            'email' => 'admin@gmail.com',
         ], [
-            'name' => 'Mvms Admin',
-            'password' => Hash::make('mvmsadmin!'), // Change this password!
+            'name' => 'System Administrator',
+            'password' => Hash::make('password123'), // Change this password!
         ]);
 
         // Assign admin role to the user

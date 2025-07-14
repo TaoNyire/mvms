@@ -11,8 +11,31 @@ class User extends Authenticatable
 {
     use HasApiTokens, Notifiable, HasFactory;
 
-    protected $fillable = ['name', 'email', 'password','status'];
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'is_active',
+        'account_status',
+        'status_reason',
+        'activated_by',
+        'activated_at',
+        'deactivated_by',
+        'deactivated_at',
+        'last_login_at',
+        'last_login_ip',
+        'admin_notes',
+    ];
+
     protected $hidden = ['password', 'remember_token'];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'activated_at' => 'datetime',
+        'deactivated_at' => 'datetime',
+        'last_login_at' => 'datetime',
+        'is_active' => 'boolean',
+    ];
 
     public function roles()
     {
@@ -54,6 +77,62 @@ class User extends Authenticatable
         return $this->roles()->where('name', $role)->exists();
     }
 
+    /**
+     * Get user's phone number from profile
+     */
+    public function getPhoneAttribute()
+    {
+        if ($this->hasRole('volunteer') && $this->volunteerProfile) {
+            return $this->volunteerProfile->phone;
+        }
+        if ($this->hasRole('organization') && $this->organizationProfile) {
+            return $this->organizationProfile->phone;
+        }
+        return null;
+    }
+
+    /**
+     * Get user's district from profile
+     */
+    public function getDistrictAttribute()
+    {
+        if ($this->hasRole('volunteer') && $this->volunteerProfile) {
+            return $this->volunteerProfile->district;
+        }
+        if ($this->hasRole('organization') && $this->organizationProfile) {
+            return $this->organizationProfile->district;
+        }
+        return null;
+    }
+
+    /**
+     * Get user's region from profile
+     */
+    public function getRegionAttribute()
+    {
+        if ($this->hasRole('volunteer') && $this->volunteerProfile) {
+            return $this->volunteerProfile->region;
+        }
+        if ($this->hasRole('organization') && $this->organizationProfile) {
+            return $this->organizationProfile->region;
+        }
+        return null;
+    }
+
+    /**
+     * Check if user profile is completed
+     */
+    public function getProfileCompletedAttribute()
+    {
+        if ($this->hasRole('volunteer')) {
+            return $this->volunteerProfile && $this->volunteerProfile->is_complete;
+        }
+        if ($this->hasRole('organization')) {
+            return $this->organizationProfile && $this->organizationProfile->is_complete;
+        }
+        return true; // Admin users don't need profile completion
+    }
+
     // Skills relationship
     public function skills()
     {
@@ -92,5 +171,23 @@ class User extends Authenticatable
     {
         return Skill::forOrganization($this->id)->active();
     }
+
+    /**
+     * Get the user's notifications
+     */
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    /**
+     * Get the user's notification preferences
+     */
+    public function notificationPreferences()
+    {
+        return $this->hasOne(UserNotificationPreference::class);
+    }
+
+
 }
 
