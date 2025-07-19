@@ -21,69 +21,7 @@
         </div>
     </div>
 
-    <!-- Statistics Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="card-title">Total Opportunities</h6>
-                            <h3 class="mb-0">{{ $opportunities->total() }}</h3>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-briefcase" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card bg-success text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="card-title">Published</h6>
-                            <h3 class="mb-0">{{ $opportunities->where('status', 'published')->count() }}</h3>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card bg-warning text-dark">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="card-title">Draft</h6>
-                            <h3 class="mb-0">{{ $opportunities->where('status', 'draft')->count() }}</h3>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-file-earmark" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card bg-info text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="card-title">Total Applications</h6>
-                            <h3 class="mb-0">{{ $opportunities->sum('applications_count') }}</h3>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-people" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Opportunities List -->
     <div class="card">
@@ -169,7 +107,11 @@
                                            class="btn btn-sm btn-outline-primary" title="View Details">
                                             <i class="bi bi-eye"></i>
                                         </a>
-                                        <a href="{{ route('opportunities.edit', $opportunity) }}" 
+                                        <a href="{{ route('organization.opportunities.tasks.index', $opportunity) }}"
+                                           class="btn btn-sm btn-outline-info" title="Manage Tasks">
+                                            <i class="bi bi-list-task"></i>
+                                        </a>
+                                        <a href="{{ route('opportunities.edit', $opportunity) }}"
                                            class="btn btn-sm btn-outline-secondary" title="Edit">
                                             <i class="bi bi-pencil"></i>
                                         </a>
@@ -207,9 +149,11 @@
                 </div>
 
                 <!-- Pagination -->
-                <div class="d-flex justify-content-center mt-4">
-                    {{ $opportunities->links() }}
-                </div>
+                @if($opportunities->hasPages())
+                    <div class="d-flex justify-content-center mt-4">
+                        {{ $opportunities->links() }}
+                    </div>
+                @endif
             @else
                 <div class="text-center py-5">
                     <i class="bi bi-briefcase" style="font-size: 4rem; color: #dee2e6;"></i>

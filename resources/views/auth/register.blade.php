@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.auth')
 
 @section('title', 'Register - MVMS')
 
@@ -8,13 +8,17 @@
         <div class="row justify-content-center">
             <div class="col-12 col-sm-10 col-md-8 col-lg-6 col-xl-5">
                 <div class="auth-card p-4 p-md-5">
-                    <!-- Logo and Title -->
+                    <!-- Professional Header -->
                     <div class="text-center mb-4">
-                        <div class="mb-3">
-                            <i class="bi bi-person-plus-fill text-primary" style="font-size: 3rem;"></i>
+                        <!-- MVMS Logo -->
+                        <div class="mb-4">
+                            <h1 class="fw-bold mb-3 d-flex align-items-center justify-content-center"
+                                style="font-family: 'Poppins', sans-serif; color: var(--primary-color); font-size: 2.2rem;">
+                                <i class="bi bi-grid-3x3-gap me-3"></i>MVMS
+                            </h1>
+                            <h2 class="fw-semibold text-dark mb-2" style="font-size: 1.8rem;">Create Your Account</h2>
+                            <p class="text-muted mb-0">Join the volunteer community</p>
                         </div>
-                        <h2 class="fw-bold text-dark mb-2">Join MVMS</h2>
-                        <p class="text-muted">Create your volunteer management account</p>
                     </div>
 
                     <!-- Alert Container -->
@@ -67,12 +71,12 @@
                                     id="role" 
                                     name="role" 
                                     required>
-                                <option value="">Select your role</option>
+                                <option value="">Register As</option>
                                 <option value="volunteer" {{ old('role') == 'volunteer' ? 'selected' : '' }}>
-                                    Volunteer - I want to help with opportunities
+                                    Volunteer
                                 </option>
                                 <option value="organization" {{ old('role') == 'organization' ? 'selected' : '' }}>
-                                    Organization - I want to post opportunities
+                                    Organization
                                 </option>
                             </select>
                             @error('role')
@@ -143,22 +147,25 @@
                         <!-- Submit Button -->
                         <div class="d-grid mb-3">
                             <button type="submit" class="btn btn-primary btn-lg" id="registerBtn">
-                                <span class="loading-spinner spinner-border spinner-border-sm me-2" role="status"></span>
+                                <!-- <span class="loading-spinner spinner-border spinner-border-sm me-2" role="status"></span> -->
                                 <span class="btn-text">
                                     <i class="bi bi-person-plus me-1"></i>Create Account
                                 </span>
                             </button>
                         </div>
 
-                        <!-- Divider -->
-                        <hr class="my-4">
+                        <!-- Professional Footer -->
+                        <div class="mt-4">
+                            <!-- Divider -->
+                            <hr class="my-4" style="opacity: 0.3;">
 
-                        <!-- Login Link -->
-                        <div class="text-center">
-                            <p class="mb-0">Already have an account?</p>
-                            <a href="{{ route('login') }}" class="btn btn-outline-primary mt-2">
-                                <i class="bi bi-box-arrow-in-right me-1"></i>Sign In
-                            </a>
+                            <!-- Login Link -->
+                            <div class="text-center">
+                                <p class="text-muted mb-3">Already have an account?</p>
+                                <a href="{{ route('login') }}" class="btn btn-outline-primary">
+                                    <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                                </a>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -267,6 +274,35 @@ $(document).ready(function() {
 
     // Auto-focus on name field
     $('#name').focus();
+
+    // Helper functions
+    function clearFieldErrors() {
+        $('.form-control').removeClass('is-invalid');
+        $('.invalid-feedback').remove();
+    }
+
+    function setLoadingState(button, loading) {
+        if (loading) {
+            button.prop('disabled', true);
+            button.find('.loading-spinner').show();
+            button.find('.btn-text').html('<i class="bi bi-hourglass-split me-2"></i>Creating Account...');
+        } else {
+            button.prop('disabled', false);
+            button.find('.loading-spinner').hide();
+            button.find('.btn-text').html('<i class="bi bi-person-plus me-1"></i>Create Account');
+        }
+    }
+
+    function showFieldError(field, message) {
+        const fieldElement = $('#' + field);
+        fieldElement.addClass('is-invalid');
+
+        // Remove existing error message
+        fieldElement.siblings('.invalid-feedback').remove();
+
+        // Add new error message
+        fieldElement.after('<div class="invalid-feedback mt-2">' + message + '</div>');
+    }
 });
 </script>
 @endpush

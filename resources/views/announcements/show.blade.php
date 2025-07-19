@@ -54,16 +54,42 @@
                             <i class="bi bi-exclamation-triangle me-2"></i>High Priority Announcement
                         </div>
                     @endif
-                    
+
+                    @if($announcement->audience === 'my_volunteers')
+                        <div class="alert alert-primary mb-3">
+                            <i class="bi bi-people-fill me-2"></i>
+                            @if(auth()->user()->hasRole('volunteer'))
+                                This announcement is specifically for you as a volunteer with {{ $announcement->creator->organizationProfile->org_name ?? 'this organization' }}.
+                            @else
+                                This announcement is only visible to your organization's volunteers.
+                            @endif
+                        </div>
+                    @endif
+
                     <div class="announcement-content">
                         {!! nl2br(e($announcement->content)) !!}
                     </div>
-                    
-                    @if($announcement->category)
-                        <div class="mt-3">
+
+                    <div class="mt-3">
+                        @if($announcement->category)
                             <span class="badge bg-secondary">{{ $announcement->category }}</span>
-                        </div>
-                    @endif
+                        @endif
+
+                        <span class="badge bg-info">
+                            <i class="bi bi-people me-1"></i>
+                            @if($announcement->audience === 'all')
+                                All Users
+                            @elseif($announcement->audience === 'volunteers')
+                                All Volunteers
+                            @elseif($announcement->audience === 'my_volunteers')
+                                Organization's Volunteers
+                            @elseif($announcement->audience === 'organizations')
+                                Organizations Only
+                            @elseif($announcement->audience === 'admins')
+                                Administrators Only
+                            @endif
+                        </span>
+                    </div>
                     
                     @if($announcement->expires_at)
                         <div class="mt-3">

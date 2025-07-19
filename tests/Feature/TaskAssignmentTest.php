@@ -184,9 +184,7 @@ class TaskAssignmentTest extends TestCase
             'opportunity_id' => $this->opportunity->id,
             'task_id' => $this->task->id,
             'status' => 'accepted',
-            'confirmation_status' => 'confirmed',
-            'applied_at' => now(),
-            'responded_at' => now()
+            'applied_at' => now()
         ]);
 
         // Create initial task status
@@ -233,9 +231,7 @@ class TaskAssignmentTest extends TestCase
             'opportunity_id' => $this->opportunity->id,
             'task_id' => $this->task->id,
             'status' => 'accepted',
-            'confirmation_status' => 'confirmed',
-            'applied_at' => now(),
-            'responded_at' => now()
+            'applied_at' => now()
         ]);
 
         // Create different task statuses

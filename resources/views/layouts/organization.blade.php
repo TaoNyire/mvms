@@ -9,24 +9,53 @@
 
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    
+
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
     <!-- Custom CSS -->
     <style>
         :root {
-            --primary-color: #007bff;
-            --primary-dark: #0056b3;
-            --secondary-color: #6c757d;
+            --primary-color: #0ea5e9;
+            --primary-dark: #0284c7;
+            --primary-light: #38bdf8;
+            --secondary-color: #64748b;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #3b82f6;
             --sidebar-width: 280px;
             --header-height: 70px;
             --footer-height: 60px;
+            --light-bg: #f8fafc;
+            --white: #ffffff;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f8f9fa;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-weight: 400;
+            line-height: 1.6;
+            color: var(--text-dark);
+            background-color: var(--light-bg);
+        }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            line-height: 1.4;
+            color: var(--text-dark);
         }
 
         /* Sidebar Styles */
@@ -39,8 +68,20 @@
             background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
             color: white;
             z-index: 1000;
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow-y: auto;
+            box-shadow: var(--shadow-xl);
+        }
+
+        .sidebar::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="0.5" fill="rgba(255,255,255,0.05)"/><circle cx="75" cy="75" r="0.5" fill="rgba(255,255,255,0.05)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
         }
 
         .sidebar.collapsed {
@@ -48,15 +89,20 @@
         }
 
         .sidebar-header {
-            padding: 1.5rem 1rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
             text-align: center;
+            position: relative;
+            z-index: 1;
         }
 
         .sidebar-header h4 {
             margin: 0;
-            font-weight: 600;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            font-size: 1.4rem;
             transition: opacity 0.3s ease;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .sidebar.collapsed .sidebar-header h4 {
@@ -64,39 +110,70 @@
         }
 
         .nav-item {
-            margin: 0.2rem 0;
+            margin: 0.3rem 0;
+            position: relative;
+            z-index: 1;
         }
 
         .nav-link {
-            color: rgba(255, 255, 255, 0.8) !important;
-            padding: 0.8rem 1rem;
-            border-radius: 0.5rem;
-            margin: 0 0.5rem;
-            transition: all 0.3s ease;
+            color: rgba(255, 255, 255, 0.85) !important;
+            padding: 1rem 1.2rem;
+            border-radius: 12px;
+            margin: 0 0.8rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
+            font-weight: 500;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .nav-link:hover::before {
+            left: 100%;
         }
 
         .nav-link:hover, .nav-link.active {
-            background-color: rgba(255, 255, 255, 0.1);
+            background-color: rgba(255, 255, 255, 0.15);
             color: white !important;
-            transform: translateX(5px);
+            transform: translateX(8px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .nav-link.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            font-weight: 600;
         }
 
         .nav-link i {
-            width: 20px;
-            margin-right: 0.8rem;
+            width: 22px;
+            margin-right: 1rem;
             text-align: center;
+            font-size: 1.1rem;
         }
 
         .nav-section-header {
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            margin-bottom: 5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
         }
 
         .nav-section-header small {
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
             font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
         }
 
         .sidebar.collapsed .nav-link span {
@@ -212,15 +289,56 @@
             }
         }
 
-        /* Organization-specific colors */
+        /* Organization-specific colors and components */
+        .btn {
+            font-weight: 600;
+            border-radius: 12px;
+            padding: 12px 24px;
+            font-size: 0.95rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
         .btn-primary {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            color: white;
+            box-shadow: var(--shadow-md);
         }
 
         .btn-primary:hover {
-            background-color: var(--primary-dark);
-            border-color: var(--primary-dark);
+            background: linear-gradient(135deg, var(--primary-dark) 0%, #0369a1 100%);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-outline-primary {
+            border: 2px solid var(--primary-color);
+            color: var(--primary-color);
+            background: transparent;
+        }
+
+        .btn-outline-primary:hover {
+            background: var(--primary-color);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
         }
 
         .text-primary {
@@ -228,7 +346,90 @@
         }
 
         .bg-primary {
-            background-color: var(--primary-color) !important;
+            background: var(--primary-color) !important;
+        }
+
+        /* Cards */
+        .card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: var(--shadow-md);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--white);
+            overflow: hidden;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            font-family: 'Poppins', sans-serif;
+            padding: 1.25rem 1.5rem;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        .card-title {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        /* Badge styles */
+        .badge {
+            font-weight: 600;
+            padding: 0.5rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.8rem;
+        }
+
+        /* Table improvements */
+        .table {
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .table th {
+            background: var(--light-bg);
+            font-weight: 600;
+            color: var(--text-dark);
+            border: none;
+            padding: 1rem;
+        }
+
+        .table td {
+            padding: 1rem;
+            border-color: var(--border-color);
+            vertical-align: middle;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(14, 165, 233, 0.05);
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--light-bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
         }
     </style>
     
@@ -238,8 +439,7 @@
     <!-- Sidebar -->
     <nav class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h4><i class="bi bi-building me-2"></i><span>MVMS</span></h4>
-            <small class="text-light opacity-75"><span>Organization Portal</span></small>
+            <h4><i class="bi bi-grid-3x3-gap me-2"></i><span>MVMS</span></h4>
         </div>
         
         <ul class="nav flex-column mt-3">
@@ -253,22 +453,21 @@
                 <a class="nav-link" href="{{ route('notifications.index') }}">
                     <i class="bi bi-bell"></i>
                     <span>Notifications</span>
-                    <span class="badge bg-primary ms-2" id="notification-count" style="display: none;"></span>
                 </a>
             </li>
-            <li class="nav-item">
+            <!-- <li class="nav-item">
                 <a class="nav-link" href="{{ route('messages.index') }}">
                     <i class="bi bi-chat-dots"></i>
                     <span>Messages</span>
                     <span class="badge bg-info ms-2" id="message-count" style="display: none;"></span>
                 </a>
-            </li>
-            <li class="nav-item">
+            </li> -->
+            <!-- <li class="nav-item">
                 <a class="nav-link" href="{{ route('announcements.index') }}">
                     <i class="bi bi-megaphone"></i>
                     <span>Announcements</span>
                 </a>
-            </li>
+            </li> -->
 
             <!-- Opportunity Management Section -->
             <li class="nav-item mt-3">
@@ -310,13 +509,30 @@
                 </div>
             </li>
             <li class="nav-item">
+                <a class="nav-link" href="{{ route('opportunities.index') }}?tab=tasks">
+                    <i class="bi bi-list-task"></i>
+                    <span>Task Management</span>
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" href="{{ route('organization.calendar') }}">
                     <i class="bi bi-calendar"></i>
                     <span>Calendar & Schedule</span>
                 </a>
             </li>
 
-
+            <!-- Reports Section -->
+            <li class="nav-item mt-3">
+                <div class="nav-section-header px-3 py-2">
+                    <small class="text-light opacity-75 fw-semibold">REPORTS & ANALYTICS</small>
+                </div>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{{ route('organization.reports.index') }}">
+                    <i class="bi bi-graph-up"></i>
+                    <span>Generate Reports</span>
+                </a>
+            </li>
 
             <!-- Organization Profile Section -->
             <li class="nav-item mt-3">
@@ -361,15 +577,12 @@
                     <span>{{ Auth::user()->name }}</span>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end">
-                    <li><a class="dropdown-item" href="{{ route('organization.profile.show') }}"><i class="bi bi-building me-2"></i>View Profile</a></li>
-                    <li><a class="dropdown-item" href="{{ route('organization.profile.create') }}"><i class="bi bi-pencil me-2"></i>Edit Profile</a></li>
-                    <li><a class="dropdown-item" href="{{ route('opportunities.index') }}"><i class="bi bi-briefcase me-2"></i>My Opportunities</a></li>
-                    <li><a class="dropdown-item" href="{{ route('organization.applications.index') }}"><i class="bi bi-file-earmark-text me-2"></i>Applications</a></li>
+                    <li><a class="dropdown-item" href="{{ route('organization.profile.show') }}"><i class="bi bi-person me-2"></i>Profile</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
-                        <form action="{{ route('logout') }}" method="POST" class="d-inline">
+                        <form action="{{ route('logout') }}" method="POST" class="d-inline" id="logoutForm">
                             @csrf
-                            <button type="submit" class="dropdown-item">
+                            <button type="button" class="dropdown-item" onclick="confirmLogout()">
                                 <i class="bi bi-box-arrow-right me-2"></i>Logout
                             </button>
                         </form>
@@ -389,6 +602,31 @@
                 <span>&copy; {{ date('Y') }} MVMS - Malawi Volunteer Management System. All rights reserved.</span>
             </div>
         </footer>
+    </div>
+
+    <!-- Logout Confirmation Modal -->
+    <div class="modal fade" id="logoutModal" tabindex="-1" aria-labelledby="logoutModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="logoutModalLabel">
+                        <i class="bi bi-question-circle me-2"></i>Confirm Logout
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to logout?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>No
+                    </button>
+                    <button type="button" class="btn btn-danger" id="confirmLogoutBtn">
+                        <i class="bi bi-box-arrow-right me-1"></i>Yes, Logout
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Bootstrap 5 JS Bundle -->
@@ -420,6 +658,17 @@
             });
         }
 
+        // Logout confirmation function
+        function confirmLogout() {
+            const logoutModal = new bootstrap.Modal(document.getElementById('logoutModal'));
+            logoutModal.show();
+        }
+
+        // Handle logout confirmation
+        document.getElementById('confirmLogoutBtn').addEventListener('click', function() {
+            document.getElementById('logoutForm').submit();
+        });
+
         // Active nav link highlighting
         const currentPath = window.location.pathname;
         const navLinks = document.querySelectorAll('.nav-link');
@@ -431,46 +680,9 @@
             }
         });
 
-        // Real-time notification and message updates
-        function updateNotificationCount() {
-            fetch('/notifications/unread-count')
-                .then(response => response.json())
-                .then(data => {
-                    const badge = document.getElementById('notification-count');
-                    if (data.count > 0) {
-                        badge.textContent = data.count;
-                        badge.style.display = 'inline';
-                    } else {
-                        badge.style.display = 'none';
-                    }
-                })
-                .catch(error => console.error('Error fetching notification count:', error));
-        }
 
-        function updateMessageCount() {
-            fetch('/messages/unread-count')
-                .then(response => response.json())
-                .then(data => {
-                    const badge = document.getElementById('message-count');
-                    if (data.count > 0) {
-                        badge.textContent = data.count;
-                        badge.style.display = 'inline';
-                    } else {
-                        badge.style.display = 'none';
-                    }
-                })
-                .catch(error => console.error('Error fetching message count:', error));
-        }
 
-        // Update counts on page load and periodically
-        updateNotificationCount();
-        updateMessageCount();
 
-        // Update counts every 30 seconds
-        setInterval(function() {
-            updateNotificationCount();
-            updateMessageCount();
-        }, 30000);
 
         // Show toast notifications for real-time updates
         function showToastNotification(title, message, type = 'info') {

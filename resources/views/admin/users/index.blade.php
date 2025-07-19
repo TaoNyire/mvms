@@ -23,10 +23,7 @@
                 <button type="button" class="btn btn-outline-primary" onclick="showBulkActions()">
                     <i class="bi bi-check2-square me-1"></i>Bulk Actions
                 </button>
-                <button type="button" class="btn btn-primary" onclick="exportUsers()">
-                    <i class="bi bi-download me-1"></i>Export
-                </button>
-            </div>
+    </div>
         </div>
     </div>
 
@@ -276,6 +273,42 @@ document.getElementById('selectAll').addEventListener('change', function() {
 });
 
 document.querySelectorAll('.user-checkbox').forEach(checkbox => {
+
+<!-- Toast Container -->
+<div id="toastContainer" class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999;"></div>
+<script>
+// ...existing code...
+function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toastContainer');
+    const toastId = 'toast-' + Date.now();
+    const bgClass = type === 'success' ? 'bg-success' : type === 'danger' ? 'bg-danger' : type === 'warning' ? 'bg-warning' : 'bg-info';
+    const html = `
+        <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0 mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    `;
+    toastContainer.insertAdjacentHTML('beforeend', html);
+    const toastEl = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+    toast.show();
+    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+}
+
+// Checkbox handling
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+    updateSelectedCount();
+});
+
+document.querySelectorAll('.user-checkbox').forEach(checkbox => {
     checkbox.addEventListener('change', updateSelectedCount);
 });
 
@@ -287,10 +320,9 @@ function updateSelectedCount() {
 function showBulkActions() {
     const selected = document.querySelectorAll('.user-checkbox:checked').length;
     if (selected === 0) {
-        alert('Please select at least one user.');
+        showToast('Please select at least one user.', 'warning');
         return;
     }
-    
     updateSelectedCount();
     const modal = new bootstrap.Modal(document.getElementById('bulkActionsModal'));
     modal.show();
@@ -300,7 +332,6 @@ document.getElementById('bulkAction').addEventListener('change', function() {
     const reasonField = document.getElementById('reasonField');
     const needsReason = ['deactivate', 'suspend', 'delete'].includes(this.value);
     reasonField.style.display = needsReason ? 'block' : 'none';
-    
     if (needsReason) {
         document.getElementById('actionReason').required = true;
     } else {
@@ -312,21 +343,17 @@ function executeBulkAction() {
     const action = document.getElementById('bulkAction').value;
     const reason = document.getElementById('actionReason').value;
     const selectedUsers = Array.from(document.querySelectorAll('.user-checkbox:checked')).map(cb => cb.value);
-    
     if (!action) {
-        alert('Please select an action.');
+        showToast('Please select an action.', 'warning');
         return;
     }
-    
     if (['deactivate', 'suspend', 'delete'].includes(action) && !reason.trim()) {
-        alert('Please provide a reason for this action.');
+        showToast('Please provide a reason for this action.', 'warning');
         return;
     }
-    
     if (!confirm(`Are you sure you want to ${action} ${selectedUsers.length} users?`)) {
         return;
     }
-    
     fetch('/admin/users/bulk-action', {
         method: 'POST',
         headers: {
@@ -344,12 +371,12 @@ function executeBulkAction() {
         if (data.success) {
             location.reload();
         } else {
-            alert('Error: ' + data.message);
+            showToast('Error: ' + data.message, 'danger');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred while executing the bulk action.');
+        showToast('An error occurred while executing the bulk action.', 'danger');
     });
 }
 
@@ -368,7 +395,7 @@ function activateUser(userId) {
             if (data.success) {
                 location.reload();
             } else {
-                alert('Error: ' + data.message);
+                showToast('Error: ' + data.message, 'danger');
             }
         });
     }
@@ -390,7 +417,7 @@ function deactivateUser(userId) {
             if (data.success) {
                 location.reload();
             } else {
-                alert('Error: ' + data.message);
+                showToast('Error: ' + data.message, 'danger');
             }
         });
     }
@@ -412,7 +439,7 @@ function suspendUser(userId) {
             if (data.success) {
                 location.reload();
             } else {
-                alert('Error: ' + data.message);
+                showToast('Error: ' + data.message, 'danger');
             }
         });
     }
@@ -438,7 +465,7 @@ function deleteUser(userId) {
                 if (data.success) {
                     location.reload();
                 } else {
-                    alert('Error: ' + data.message);
+                    showToast('Error: ' + data.message, 'danger');
                 }
             });
         }
@@ -464,22 +491,19 @@ function resetPassword(userId) {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('Password reset successfully!');
+                    showToast('Password reset successfully!', 'success');
                 } else {
-                    alert('Error: ' + data.message);
+                    showToast('Error: ' + data.message, 'danger');
                 }
             });
         } else {
-            alert('Passwords do not match.');
+            showToast('Passwords do not match.', 'warning');
         }
     } else {
-        alert('Password must be at least 8 characters long.');
+        showToast('Password must be at least 8 characters long.', 'warning');
     }
 }
 
-function exportUsers() {
-    // This would implement user export functionality
-    alert('Export functionality would be implemented here.');
-}
+    // exportUsers function removed
 </script>
 @endpush

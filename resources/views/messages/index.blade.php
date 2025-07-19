@@ -99,9 +99,11 @@
                         </div>
                         
                         <!-- Pagination -->
-                        <div class="d-flex justify-content-center p-3">
-                            {{ $conversations->links() }}
-                        </div>
+                        @if($conversations->hasPages())
+                            <div class="d-flex justify-content-center p-3">
+                                {{ $conversations->links() }}
+                            </div>
+                        @endif
                     @else
                         <div class="text-center py-5">
                             <i class="bi bi-chat-dots" style="font-size: 4rem; color: #dee2e6;"></i>

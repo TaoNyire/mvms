@@ -76,13 +76,31 @@
                             </div>
                             
                             <div class="col-md-6 mb-3">
-                                <label for="target_audience" class="form-label fw-bold">Target Audience</label>
-                                <select class="form-select @error('target_audience') is-invalid @enderror" id="target_audience" name="target_audience">
-                                    <option value="all" {{ old('target_audience') === 'all' ? 'selected' : '' }}>All Users</option>
-                                    <option value="volunteers" {{ old('target_audience') === 'volunteers' ? 'selected' : '' }}>Volunteers Only</option>
-                                    <option value="organizations" {{ old('target_audience') === 'organizations' ? 'selected' : '' }}>Organizations Only</option>
+                                <label for="audience" class="form-label fw-bold">Target Audience</label>
+                                <select class="form-select @error('audience') is-invalid @enderror" id="audience" name="audience">
+                                    <option value="all" {{ old('audience') === 'all' ? 'selected' : '' }}>All Users</option>
+                                    <option value="volunteers" {{ old('audience') === 'volunteers' ? 'selected' : '' }}>All Volunteers</option>
+                                    <option value="my_volunteers" {{ old('audience') === 'my_volunteers' ? 'selected' : '' }}>
+                                        My Organization's Volunteers
+                                        @if(isset($volunteerCount) && $volunteerCount > 0)
+                                            ({{ $volunteerCount }} volunteers)
+                                        @else
+                                            (No volunteers yet)
+                                        @endif
+                                    </option>
+                                    <option value="organizations" {{ old('audience') === 'organizations' ? 'selected' : '' }}>Organizations Only</option>
                                 </select>
-                                @error('target_audience')
+                                <div class="form-text">
+                                    <small>
+                                        <strong>"My Organization's Volunteers"</strong> will only send to volunteers who have accepted positions with your organization.
+                                        @if(isset($volunteerCount) && $volunteerCount > 0)
+                                            You currently have {{ $volunteerCount }} active volunteer(s).
+                                        @else
+                                            You don't have any active volunteers yet. Volunteers will see this announcement once they join your organization.
+                                        @endif
+                                    </small>
+                                </div>
+                                @error('audience')
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>

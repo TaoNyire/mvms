@@ -346,15 +346,32 @@ class Notification extends Model
     protected function sendEmail()
     {
         try {
-            // Email sending logic would go here
-            // For now, just mark as sent
+            // Send actual email using Laravel's Mail facade
+            \Mail::raw($this->message . "\n\n" .
+                       ($this->action_text ? "Action: " . $this->action_text . "\n" : "") .
+                       ($this->action_url ? "Link: " . $this->action_url : ""),
+                function ($message) {
+                    $message->to($this->user->email, $this->user->name)
+                            ->subject($this->title);
+                });
+
             $this->update([
                 'sent_email' => true,
                 'email_sent_at' => now(),
             ]);
+
+            \Log::info("Email notification sent successfully", [
+                'notification_id' => $this->id,
+                'user_email' => $this->user->email,
+                'subject' => $this->title
+            ]);
+
         } catch (\Exception $e) {
             $this->update(['email_failed' => true]);
-            Log::error("Failed to send email notification {$this->id}: " . $e->getMessage());
+            \Log::error("Failed to send email notification {$this->id}: " . $e->getMessage(), [
+                'user_email' => $this->user->email,
+                'error_details' => $e->getTraceAsString()
+            ]);
         }
     }
 

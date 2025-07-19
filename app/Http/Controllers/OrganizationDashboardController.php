@@ -512,7 +512,6 @@ class OrganizationDashboardController extends Controller
             $query->where('organization_id', $user->id);
         })
         ->where('status', 'accepted')
-        ->where('confirmation_status', 'confirmed')
         ->with(['volunteer.volunteerProfile', 'opportunity', 'taskStatus', 'task'])
         ->limit(8)
         ->get()
@@ -591,7 +590,6 @@ class OrganizationDashboardController extends Controller
                 $tasks = $opportunity->tasks->map(function($task) {
                     $volunteers = $task->applications()
                         ->where('status', 'accepted')
-                        ->where('confirmation_status', 'confirmed')
                         ->with(['volunteer.volunteerProfile', 'taskStatus'])
                         ->get()
                         ->map(function($application) {
@@ -1064,7 +1062,6 @@ class OrganizationDashboardController extends Controller
                 $q->where('organization_id', $user->id);
             })
             ->where('status', 'accepted')
-            ->where('confirmation_status', 'confirmed')
             ->with([
                 'volunteer.volunteerProfile.skills',
                 'task',

@@ -21,69 +21,7 @@
         </div>
     </div>
 
-    <!-- Statistics Cards -->
-    <div class="row mb-4">
-        <div class="col-md-3 mb-3">
-            <div class="card bg-primary text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="card-title">Total Applications</h6>
-                            <h3 class="mb-0">{{ $applications->total() }}</h3>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-file-earmark-text" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card bg-warning text-dark">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="card-title">Pending</h6>
-                            <h3 class="mb-0">{{ $applications->where('status', 'pending')->count() }}</h3>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-clock" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card bg-success text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="card-title">Accepted</h6>
-                            <h3 class="mb-0">{{ $applications->where('status', 'accepted')->count() }}</h3>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-check-circle" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3 mb-3">
-            <div class="card bg-info text-white">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between">
-                        <div>
-                            <h6 class="card-title">Completed</h6>
-                            <h3 class="mb-0">{{ $applications->where('status', 'completed')->count() }}</h3>
-                        </div>
-                        <div class="align-self-center">
-                            <i class="bi bi-award" style="font-size: 2rem;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Applications List -->
     <div class="card">

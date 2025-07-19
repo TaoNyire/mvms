@@ -13,10 +13,10 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h4 class="mb-0">{{ $opportunity->title }}</h4>
                     <div>
-                        <a href="{{ route('organization.opportunities.edit', $opportunity) }}" class="btn btn-outline-primary btn-sm me-2">
+                        <a href="{{ route('opportunities.edit', $opportunity) }}" class="btn btn-outline-primary btn-sm me-2">
                             <i class="bi bi-pencil me-1"></i>Edit
                         </a>
-                        <a href="{{ route('organization.opportunities.index') }}" class="btn btn-secondary btn-sm">
+                        <a href="{{ route('opportunities.index') }}" class="btn btn-secondary btn-sm">
                             <i class="bi bi-arrow-left me-1"></i>Back to Opportunities
                         </a>
                     </div>

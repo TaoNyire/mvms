@@ -1,31 +1,89 @@
 @extends('layouts.organization')
 
-@section('title', 'Create Task - MVMS')
-
-@section('page-title', 'Create New Task')
+@section('title', 'Create Task - ' . $opportunity->title)
 
 @section('content')
 <div class="container-fluid">
     <!-- Header -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card border-0 bg-gradient" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);">
-                <div class="card-body text-white p-4">
-                    <h2 class="mb-2">
-                        <i class="bi bi-plus-circle me-2"></i>Create New Task
-                    </h2>
-                    <p class="mb-0">
-                        Create a specific task for the opportunity: <strong>{{ $opportunity->title }}</strong>
-                    </p>
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-1">Create New Task</h2>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-0">
+                            <li class="breadcrumb-item"><a href="{{ route('organization.dashboard') }}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ route('opportunities.index') }}">Opportunities</a></li>
+                            <li class="breadcrumb-item"><a href="{{ route('organization.opportunities.tasks.index', $opportunity) }}">{{ Str::limit($opportunity->title, 30) }}</a></li>
+                            <li class="breadcrumb-item active">Create Task</li>
+                        </ol>
+                    </nav>
+                </div>
+                <a href="{{ route('organization.opportunities.tasks.index', $opportunity) }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Tasks
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Opportunity Info -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <h5 class="card-title mb-1">Creating task for: {{ $opportunity->title }}</h5>
+                    <p class="text-muted mb-0">{{ Str::limit($opportunity->description, 100) }}</p>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Task Form -->
-    <form id="taskForm" method="POST" action="{{ route('tasks.store', $opportunity) }}">
+    <form id="taskForm" method="POST" action="{{ route('organization.opportunities.tasks.store', $opportunity) }}">
         @csrf
-        
+
+        <!-- Success/Error Messages -->
+        @if(session('success'))
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+                    <div>
+                        <strong>Success!</strong> {{ session('success') }}
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                    <div>
+                        <strong>Error!</strong> {{ session('error') }}
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+
+        @if ($errors->any())
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <div class="d-flex align-items-start">
+                    <i class="bi bi-exclamation-triangle-fill me-2 fs-5 mt-1"></i>
+                    <div>
+                        <strong>Please fix the following errors:</strong>
+                        <ul class="mb-0 mt-2">
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        @endif
+
         <!-- Basic Information -->
         <div class="card mb-4">
             <div class="card-header bg-primary text-white">
@@ -39,8 +97,8 @@
                         <label for="title" class="form-label fw-bold">
                             Task Title <span class="text-danger">*</span>
                         </label>
-                        <input type="text" class="form-control" id="title" name="title" 
-                               placeholder="e.g., Set up registration booth" required>
+                        <input type="text" class="form-control" id="title" name="title"
+                               value="{{ old('title') }}" placeholder="e.g., Set up registration booth" required>
                         <div class="invalid-feedback"></div>
                     </div>
                     <div class="col-md-4 mb-3">
@@ -59,8 +117,8 @@
                         <label for="description" class="form-label fw-bold">
                             Description <span class="text-danger">*</span>
                         </label>
-                        <textarea class="form-control" id="description" name="description" rows="4" 
-                                  placeholder="Describe what volunteers will do in this task..." required></textarea>
+                        <textarea class="form-control" id="description" name="description" rows="4"
+                                  placeholder="Describe what volunteers will do in this task..." required>{{ old('description') }}</textarea>
                         <div class="form-text">Minimum 20 characters</div>
                     </div>
                     <div class="col-12 mb-3">
@@ -260,11 +318,11 @@
                         <i class="bi bi-arrow-left me-1"></i>Cancel
                     </a>
                     <div>
-                        <button type="submit" class="btn btn-primary me-2" name="action" value="draft">
+                        <button type="submit" class="btn btn-primary me-2" name="action" value="draft" id="draftBtn">
                             <i class="bi bi-save me-1"></i>Save as Draft
                         </button>
-                        <button type="submit" class="btn btn-success" name="action" value="publish">
-                            <i class="bi bi-check-circle me-1"></i>Save & Publish
+                        <button type="submit" class="btn btn-success" name="action" value="publish" id="publishBtn">
+                            <i class="bi bi-check-circle me-1"></i>Create Task
                         </button>
                     </div>
                 </div>
@@ -303,12 +361,32 @@ $(document).ready(function() {
         $('#assignment_deadline').attr('max', this.value);
     });
     
-    // Form submission
+    // Form submission with loading states
     $('#taskForm').submit(function(e) {
         const action = $('button[type="submit"]:focus').val() || 'draft';
-        
+        const submitBtn = $('button[type="submit"]:focus');
+
+        // Show loading state
+        submitBtn.prop('disabled', true);
+        const originalText = submitBtn.html();
+        submitBtn.html('<i class="bi bi-hourglass-split me-1"></i>Creating...');
+
+        // Re-enable button after 10 seconds (fallback)
+        setTimeout(function() {
+            submitBtn.prop('disabled', false);
+            submitBtn.html(originalText);
+        }, 10000);
+
         if (action === 'publish') {
             $(this).append('<input type="hidden" name="publish_now" value="1">');
+        }
+    });
+
+    // Show confirmation for publish action
+    $('#publishBtn').click(function(e) {
+        if (!confirm('Are you sure you want to create and publish this task? It will be visible to volunteers immediately.')) {
+            e.preventDefault();
+            return false;
         }
     });
 });

@@ -13,91 +13,87 @@
     <!-- Welcome Section -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="card border-0 bg-gradient text-white" style="background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);">
+            <div class="card bg-primary text-white">
                 <div class="card-body p-4">
-                    <h2 class="mb-2">Welcome back, {{ auth()->user()->name }}!</h2>
-                    <p class="mb-0">Here's what's happening in your volunteer management system today.</p>
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <i class="bi bi-grid-3x3-gap" style="font-size: 2.5rem;"></i>
+                                </div>
+                                <div>
+                                    <h2 class="mb-1">MVMS Admin Dashboard</h2>
+                                    <p class="mb-0 opacity-90">Welcome, {{ Auth::user()->name }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <div class="text-center">
+                                <div class="h4 mb-1" id="system-time">{{ now()->format('H:i') }}</div>
+                                <small class="opacity-75">{{ now()->format('M j, Y') }}</small>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Statistics Cards -->
+    <!-- Quick Stats -->
     <div class="row mb-4">
-        <!-- Users Overview -->
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="stats-card">
-                <div class="d-flex align-items-center">
-                    <div class="stats-icon bg-primary me-3">
-                        <i class="bi bi-people"></i>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <a href="{{ route('admin.users.index') }}" class="text-decoration-none">
+                <div class="card h-100 hover-shadow">
+                    <div class="card-body text-center">
+                        <div class="text-primary mb-3">
+                            <i class="bi bi-people" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h4 class="text-primary mb-1">{{ number_format($stats['total_users']) }}</h4>
+                        <h6 class="card-title text-muted">Total Users</h6>
+                        <small class="text-muted">{{ $stats['new_users_today'] }} new today</small>
                     </div>
-                    <div>
-                        <h3 class="mb-0">{{ $stats['total_users'] }}</h3>
-                        <p class="text-muted mb-0">Total Users</p>
-                        <small class="text-success">
-                            <i class="bi bi-check-circle"></i>{{ $stats['active_users'] }} active
-                        </small>
-                        <small class="text-muted d-block">{{ $stats['new_users_today'] }} new today</small>
+                </div>
+            </a>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <a href="{{ route('admin.organizations.index') }}" class="text-decoration-none">
+                <div class="card h-100 hover-shadow">
+                    <div class="card-body text-center">
+                        <div class="text-success mb-3">
+                            <i class="bi bi-building" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h4 class="text-success mb-1">{{ number_format($stats['approved_organizations']) }}</h4>
+                        <h6 class="card-title text-muted">Organizations</h6>
+                        <small class="text-muted">{{ $stats['pending_organizations'] }} pending approval</small>
                     </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <div class="text-warning mb-3">
+                        <i class="bi bi-briefcase" style="font-size: 2.5rem;"></i>
+                    </div>
+                    <h4 class="text-warning mb-1">{{ number_format($stats['total_opportunities']) }}</h4>
+                    <h6 class="card-title text-muted">Active Opportunities</h6>
+                    <small class="text-muted">{{ number_format($stats['total_applications']) }} applications</small>
                 </div>
             </div>
         </div>
-
-        <!-- Volunteers -->
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="stats-card">
-                <div class="d-flex align-items-center">
-                    <div class="stats-icon bg-success me-3">
-                        <i class="bi bi-person-heart"></i>
-                    </div>
-                    <div>
-                        <h3 class="mb-0">{{ $stats['total_volunteers'] }}</h3>
-                        <p class="text-muted mb-0">Volunteers</p>
-                        <small class="text-success">
-                            <i class="bi bi-person-check"></i>{{ $stats['active_volunteers'] }} active
-                        </small>
-                        <small class="text-muted d-block">{{ $stats['volunteers_with_profiles'] }} with profiles</small>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <a href="{{ route('admin.users.index', ['role' => 'volunteer']) }}" class="text-decoration-none">
+                <div class="card h-100 hover-shadow">
+                    <div class="card-body text-center">
+                        <div class="text-info mb-3">
+                            <i class="bi bi-person-check" style="font-size: 2.5rem;"></i>
+                        </div>
+                        <h4 class="text-info mb-1">{{ number_format($stats['active_volunteers']) }}</h4>
+                        <h6 class="card-title text-muted">Active Volunteers</h6>
+                        <small class="text-muted">Ready to help</small>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Organizations -->
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="stats-card">
-                <div class="d-flex align-items-center">
-                    <div class="stats-icon bg-info me-3">
-                        <i class="bi bi-building"></i>
-                    </div>
-                    <div>
-                        <h3 class="mb-0">{{ $stats['approved_organizations'] }}</h3>
-                        <p class="text-muted mb-0">Organizations</p>
-                        <small class="text-warning">
-                            <i class="bi bi-clock"></i>{{ $stats['pending_organizations'] }} pending
-                        </small>
-                        <small class="text-muted d-block">{{ $stats['verified_organizations'] }} verified</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Opportunities -->
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="stats-card">
-                <div class="d-flex align-items-center">
-                    <div class="stats-icon bg-warning me-3">
-                        <i class="bi bi-briefcase"></i>
-                    </div>
-                    <div>
-                        <h3 class="mb-0">{{ $stats['total_opportunities'] }}</h3>
-                        <p class="text-muted mb-0">Opportunities</p>
-                        <small class="text-success">
-                            <i class="bi bi-eye"></i>{{ $stats['active_opportunities'] }} active
-                        </small>
-                        <small class="text-muted d-block">{{ $stats['total_applications'] }} applications</small>
-                    </div>
-                </div>
-            </div>
+            </a>
         </div>
     </div>
 
@@ -121,22 +117,13 @@
                         </div>
                         <div class="col-6">
                             <div class="text-center p-3 border rounded">
-                                <h4 class="text-info">{{ $stats['volunteers_available'] ?? 0 }}</h4>
+                                <h4 class="text-info">{{ number_format($stats['volunteers_available']) }}</h4>
                                 <small class="text-muted">Available Now</small>
                             </div>
                         </div>
                     </div>
 
-                    @if(isset($volunteer_insights['top_skills']) && count($volunteer_insights['top_skills']) > 0)
-                        <div class="mt-3">
-                            <h6>Top Skills</h6>
-                            <div class="d-flex flex-wrap gap-1">
-                                @foreach(array_slice($volunteer_insights['top_skills'], 0, 8) as $skill => $count)
-                                    <span class="badge bg-secondary">{{ $skill }} ({{ $count }})</span>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endif
+
                 </div>
             </div>
         </div>
@@ -171,122 +158,15 @@
                         </div>
                     </div>
 
-                    @if(isset($organization_insights['organization_types']) && count($organization_insights['organization_types']) > 0)
-                        <div class="mt-3">
-                            <h6>Organization Types</h6>
-                            <div class="d-flex flex-wrap gap-1">
-                                @foreach(array_slice($organization_insights['organization_types'], 0, 5) as $type => $count)
-                                    <span class="badge bg-primary">{{ $type }} ({{ $count }})</span>
-                                @endforeach
-                            </div>
-                        </div>
-                    @endif
+
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Geographic Distribution -->
-    <div class="row mb-4">
-        <!-- Volunteer Distribution -->
-        <div class="col-lg-6 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-geo-alt me-2"></i>Volunteer Distribution by District
-                    </h5>
-                </div>
-                <div class="card-body">
-                    @if(isset($volunteer_insights['districts_distribution']) && count($volunteer_insights['districts_distribution']) > 0)
-                        @foreach(array_slice($volunteer_insights['districts_distribution'], 0, 8) as $district => $count)
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>{{ $district }}</span>
-                                <div class="d-flex align-items-center">
-                                    <div class="progress me-2" style="width: 100px; height: 8px;">
-                                        <div class="progress-bar bg-success"
-                                             style="width: {{ ($count / max($volunteer_insights['districts_distribution'])) * 100 }}%"></div>
-                                    </div>
-                                    <span class="badge bg-success">{{ $count }}</span>
-                                </div>
-                            </div>
-                        @endforeach
-                    @else
-                        <p class="text-muted text-center">No volunteer distribution data available</p>
-                    @endif
-                </div>
-            </div>
-        </div>
 
-        <!-- Organization Distribution -->
-        <div class="col-lg-6 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-geo-alt me-2"></i>Organization Distribution by District
-                    </h5>
-                </div>
-                <div class="card-body">
-                    @if(isset($organization_insights['districts_distribution']) && count($organization_insights['districts_distribution']) > 0)
-                        @foreach(array_slice($organization_insights['districts_distribution'], 0, 8) as $district => $count)
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>{{ $district }}</span>
-                                <div class="d-flex align-items-center">
-                                    <div class="progress me-2" style="width: 100px; height: 8px;">
-                                        <div class="progress-bar bg-primary"
-                                             style="width: {{ ($count / max($organization_insights['districts_distribution'])) * 100 }}%"></div>
-                                    </div>
-                                    <span class="badge bg-primary">{{ $count }}</span>
-                                </div>
-                            </div>
-                        @endforeach
-                    @else
-                        <p class="text-muted text-center">No organization distribution data available</p>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Recent Activity Trends -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-activity me-2"></i>Recent Activity Overview
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="text-center p-3 border rounded">
-                                <h4 class="text-primary">{{ $stats['new_users_today'] }}</h4>
-                                <small class="text-muted">New Users Today</small>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-center p-3 border rounded">
-                                <h4 class="text-success">{{ $stats['new_users_this_week'] }}</h4>
-                                <small class="text-muted">New Users This Week</small>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-center p-3 border rounded">
-                                <h4 class="text-info">{{ $stats['new_orgs_this_month'] }}</h4>
-                                <small class="text-muted">New Orgs This Month</small>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-center p-3 border rounded">
-                                <h4 class="text-warning">{{ $stats['new_volunteers_this_month'] }}</h4>
-                                <small class="text-muted">New Volunteers This Month</small>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Quick Actions & Pending Items -->
     <div class="row mb-4">
@@ -383,11 +263,8 @@
                         <a href="{{ route('admin.organizations.index') }}" class="btn btn-outline-success">
                             <i class="bi bi-building me-2"></i>Review Organizations
                         </a>
-                        <a href="{{ route('admin.reports') }}" class="btn btn-outline-info">
-                            <i class="bi bi-graph-up me-2"></i>View Reports
-                        </a>
-                        <a href="{{ route('admin.settings') }}" class="btn btn-outline-secondary">
-                            <i class="bi bi-gear me-2"></i>System Settings
+                        <a href="{{ route('admin.logs') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-file-text me-2"></i>System Logs
                         </a>
                     </div>
                 </div>
@@ -547,5 +424,36 @@ function rejectOrganization(orgId) {
         });
     }
 }
+
+// Update system time every second
+function updateSystemTime() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+    const element = document.getElementById('system-time');
+    if (element) {
+        element.textContent = timeString;
+    }
+}
+
+// Update immediately and then every second
+document.addEventListener('DOMContentLoaded', function() {
+    updateSystemTime();
+    setInterval(updateSystemTime, 1000);
+});
 </script>
+
+<style>
+.hover-shadow {
+    transition: box-shadow 0.3s ease;
+}
+
+.hover-shadow:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-2px);
+}
+</style>
 @endpush

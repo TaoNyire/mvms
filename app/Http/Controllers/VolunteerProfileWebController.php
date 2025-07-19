@@ -19,7 +19,13 @@ class VolunteerProfileWebController extends Controller
         // Check if user already has a profile
         $profile = $user->volunteerProfile;
 
-        if ($profile && $profile->is_complete) {
+        if ($profile && $profile->completion_percentage >= 60) {
+            // Check if user came from a specific page they were trying to access
+            $intendedUrl = session()->pull('url.intended');
+            if ($intendedUrl && !str_contains($intendedUrl, 'profile')) {
+                return redirect($intendedUrl)->with('info', 'Your profile is already complete.');
+            }
+
             return redirect()->route('volunteer.dashboard')
                 ->with('info', 'Your profile is already complete.');
         }
@@ -126,7 +132,7 @@ class VolunteerProfileWebController extends Controller
         );
 
         // Mark profile as complete if it meets requirements
-        if ($profile->completion_percentage >= 80) {
+        if ($profile->completion_percentage >= 60) {
             $profile->markAsComplete();
         }
 
@@ -137,6 +143,13 @@ class VolunteerProfileWebController extends Controller
                 'profile' => $profile,
                 'completion_percentage' => $profile->completion_percentage
             ]);
+        }
+
+        // Check if user was trying to access a specific page before profile completion
+        $intendedUrl = session()->pull('url.intended');
+        if ($intendedUrl && !str_contains($intendedUrl, 'profile')) {
+            return redirect($intendedUrl)
+                ->with('success', 'Profile completed successfully! You can now access volunteer opportunities.');
         }
 
         return redirect()->route('volunteer.dashboard')

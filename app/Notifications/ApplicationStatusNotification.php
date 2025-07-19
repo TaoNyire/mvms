@@ -77,8 +77,7 @@ class ApplicationStatusNotification extends Notification
             'opportunity_id' => $this->application->opportunity_id,
             'opportunity_title' => $this->application->opportunity->title,
             'status' => $this->application->status,
-            'responded_at' => $this->application->responded_at,
-            'confirmation_status' => $this->application->confirmation_status ?? null,
+            'applied_at' => $this->application->applied_at,
         ];
     }
 }

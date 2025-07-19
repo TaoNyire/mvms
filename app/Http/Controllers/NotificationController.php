@@ -10,15 +10,45 @@ use App\Models\UserNotificationPreference;
 class NotificationController extends Controller
 {
     /**
-     * Display user's notifications
+     * Verify notification ownership for security and data integrity
+     */
+    private function verifyNotificationOwnership(Notification $notification, string $action = 'access'): void
+    {
+        $user = Auth::user();
+
+        if ($notification->user_id !== $user->id) {
+            \Log::warning('Unauthorized notification access attempt', [
+                'user_id' => $user->id,
+                'user_email' => $user->email,
+                'notification_id' => $notification->id,
+                'notification_owner' => $notification->user_id,
+                'action' => $action,
+                'ip' => request()->ip(),
+                'user_agent' => request()->userAgent()
+            ]);
+
+            abort(403, 'Unauthorized access to this notification.');
+        }
+    }
+    /**
+     * Display user's notifications with proper security and data isolation
      */
     public function index(Request $request)
     {
         $user = Auth::user();
 
+        // Ensure data integrity - only show notifications for the authenticated user
         $query = Notification::where('user_id', $user->id)
             ->notExpired()
             ->orderBy('created_at', 'desc');
+
+        // Log access for security monitoring
+        \Log::info('Notification access', [
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'user_roles' => $user->roles->pluck('name')->toArray(),
+            'ip' => $request->ip()
+        ]);
 
         // Filter by status
         if ($request->has('status')) {
@@ -61,29 +91,68 @@ class NotificationController extends Controller
     }
 
     /**
-     * Get unread notifications count
+     * Get unread notifications count with enhanced security
      */
     public function unreadCount()
     {
-        $count = Notification::where('user_id', Auth::id())
-            ->unread()
-            ->notExpired()
-            ->count();
+        try {
+            $user = Auth::user();
 
-        return response()->json(['count' => $count]);
+            // Enhanced security - ensure user is properly authenticated
+            if (!$user || !$user->is_active || $user->account_status !== 'active') {
+                \Log::warning('Unauthorized unread count access attempt', [
+                    'user_id' => $user ? $user->id : null,
+                    'is_active' => $user ? $user->is_active : null,
+                    'account_status' => $user ? $user->account_status : null,
+                    'ip' => request()->ip()
+                ]);
+
+                return response()->json(['count' => 0], 401);
+            }
+
+            // Secure query - only count notifications for the authenticated user
+            $count = Notification::where('user_id', $user->id)
+                ->unread()
+                ->notExpired()
+                ->count();
+
+            // Log for security monitoring (only in debug mode to avoid log spam)
+            if (config('app.debug')) {
+                \Log::debug('Notification count accessed', [
+                    'user_id' => $user->id,
+                    'count' => $count
+                ]);
+            }
+
+            return response()->json(['count' => $count]);
+
+        } catch (\Exception $e) {
+            \Log::error('Failed to get notification count', [
+                'error' => $e->getMessage(),
+                'user_id' => Auth::id(),
+                'ip' => request()->ip()
+            ]);
+
+            return response()->json(['count' => 0], 500);
+        }
     }
 
     /**
-     * Mark notification as read
+     * Mark notification as read with enhanced security
      */
     public function markAsRead(Notification $notification)
     {
-        // Check if user owns this notification
-        if ($notification->user_id !== Auth::id()) {
-            abort(403, 'Unauthorized access to this notification.');
-        }
+        // Verify ownership for security and data integrity
+        $this->verifyNotificationOwnership($notification, 'mark_as_read');
 
         $notification->markAsRead();
+
+        // Log successful action for audit trail
+        \Log::info('Notification marked as read', [
+            'user_id' => Auth::id(),
+            'notification_id' => $notification->id,
+            'notification_type' => $notification->type
+        ]);
 
         return response()->json([
             'success' => true,

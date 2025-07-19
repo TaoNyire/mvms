@@ -125,10 +125,10 @@ class User extends Authenticatable
     public function getProfileCompletedAttribute()
     {
         if ($this->hasRole('volunteer')) {
-            return $this->volunteerProfile && $this->volunteerProfile->is_complete;
+            return $this->volunteerProfile && $this->volunteerProfile->completion_percentage >= 60;
         }
         if ($this->hasRole('organization')) {
-            return $this->organizationProfile && $this->organizationProfile->is_complete;
+            return $this->organizationProfile && $this->organizationProfile->completion_percentage >= 85;
         }
         return true; // Admin users don't need profile completion
     }

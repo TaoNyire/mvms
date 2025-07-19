@@ -33,36 +33,44 @@
     <!-- Statistics Cards -->
     <div class="row mb-4">
         <div class="col-md-3">
-            <div class="card border-warning">
-                <div class="card-body text-center">
-                    <h3 class="text-warning">{{ $organizations->where('status', 'pending')->count() }}</h3>
-                    <p class="mb-0">Pending Approval</p>
+            <a href="{{ route('admin.organizations.index', ['status' => 'pending']) }}" class="text-decoration-none">
+                <div class="card border-warning hover-shadow">
+                    <div class="card-body text-center">
+                        <h3 class="text-warning">{{ $organizations->where('status', 'pending')->count() }}</h3>
+                        <p class="mb-0">Pending Approval</p>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
-            <div class="card border-success">
-                <div class="card-body text-center">
-                    <h3 class="text-success">{{ $organizations->where('status', 'approved')->count() }}</h3>
-                    <p class="mb-0">Approved</p>
+            <a href="{{ route('admin.organizations.index', ['status' => 'approved']) }}" class="text-decoration-none">
+                <div class="card border-success hover-shadow">
+                    <div class="card-body text-center">
+                        <h3 class="text-success">{{ $organizations->where('status', 'approved')->count() }}</h3>
+                        <p class="mb-0">Approved</p>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
-            <div class="card border-danger">
-                <div class="card-body text-center">
-                    <h3 class="text-danger">{{ $organizations->where('status', 'rejected')->count() }}</h3>
-                    <p class="mb-0">Rejected</p>
+            <a href="{{ route('admin.organizations.index', ['status' => 'rejected']) }}" class="text-decoration-none">
+                <div class="card border-danger hover-shadow">
+                    <div class="card-body text-center">
+                        <h3 class="text-danger">{{ $organizations->where('status', 'rejected')->count() }}</h3>
+                        <p class="mb-0">Rejected</p>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
         <div class="col-md-3">
-            <div class="card border-info">
-                <div class="card-body text-center">
-                    <h3 class="text-info">{{ $organizations->where('status', 'suspended')->count() }}</h3>
-                    <p class="mb-0">Suspended</p>
+            <a href="{{ route('admin.organizations.index', ['status' => 'suspended']) }}" class="text-decoration-none">
+                <div class="card border-info hover-shadow">
+                    <div class="card-body text-center">
+                        <h3 class="text-info">{{ $organizations->where('status', 'suspended')->count() }}</h3>
+                        <p class="mb-0">Suspended</p>
+                    </div>
                 </div>
-            </div>
+            </a>
         </div>
     </div>
 
@@ -479,4 +487,15 @@ function exportOrganizations() {
     alert('Export functionality would be implemented here.');
 }
 </script>
+
+<style>
+.hover-shadow {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.hover-shadow:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-2px);
+}
+</style>
 @endpush

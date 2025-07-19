@@ -10,19 +10,14 @@ use App\Models\OrganizationProfile;
 class OrganizationProfileWebController extends Controller
 {
     /**
-     * Show the profile creation form
+     * Show the profile creation/edit form
      */
     public function create()
     {
         $user = Auth::user();
 
-        // Check if user already has a profile
+        // Get existing profile for editing or create new
         $profile = $user->organizationProfile;
-
-        if ($profile && $profile->is_complete) {
-            return redirect()->route('organization.dashboard')
-                ->with('info', 'Your organization profile is already complete.');
-        }
 
         return view('organization.profile.create', compact('profile'));
     }

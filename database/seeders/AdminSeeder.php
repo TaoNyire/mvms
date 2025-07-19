@@ -19,7 +19,7 @@ class AdminSeeder extends Seeder
         $admin = User::firstOrCreate(
             ['email' => 'admin@gmail.com'],
             [
-                'name' => 'System Administrator',
+                'name' => 'tao admin',
                 'email' => 'admin@gmail.com',
                 'password' => Hash::make('password123'),
                 'email_verified_at' => now(),

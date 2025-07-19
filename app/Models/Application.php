@@ -220,9 +220,30 @@ class Application extends Model
     public function sendStatusEmail($status)
     {
         try {
-            // This would integrate with your email system
-            // For now, we'll just log it
-            \Log::info("Email sent to volunteer {$this->volunteer->email} for application {$this->id} - Status: {$status}");
+            $volunteer = $this->volunteer;
+            $opportunity = $this->opportunity;
+            $organization = $opportunity->organization;
+
+            // Send actual email
+            $emailContent = "Hello {$volunteer->name},\n\n";
+            $emailContent .= "Your application for '{$opportunity->title}' has been " . strtoupper($status) . ".\n\n";
+            $emailContent .= "Organization: " . ($organization->organizationProfile->org_name ?? $organization->name) . "\n";
+            $emailContent .= "Location: {$opportunity->location}\n";
+            $emailContent .= "Start Date: " . $opportunity->start_date->format('M d, Y') . "\n\n";
+
+            if ($status === 'accepted') {
+                $emailContent .= "Congratulations! Please wait for the organization to contact you with next steps.\n\n";
+            } elseif ($status === 'rejected') {
+                $emailContent .= "Thank you for your interest. Please consider applying for other opportunities.\n\n";
+            }
+
+            $emailContent .= "View your applications: " . url('/volunteer/applications') . "\n\n";
+            $emailContent .= "Best regards,\nMVMS Team";
+
+            \Mail::raw($emailContent, function ($message) use ($volunteer, $status, $opportunity) {
+                $message->to($volunteer->email, $volunteer->name)
+                        ->subject("Application Update: {$opportunity->title} - " . ucfirst($status));
+            });
 
             $this->update([
                 'email_sent' => true,
@@ -235,8 +256,19 @@ class Application extends Model
                     ]
                 ])
             ]);
+
+            \Log::info("Application status email sent successfully", [
+                'application_id' => $this->id,
+                'volunteer_email' => $volunteer->email,
+                'status' => $status
+            ]);
+
         } catch (\Exception $e) {
-            \Log::error("Failed to send email for application {$this->id}: " . $e->getMessage());
+            \Log::error("Failed to send email for application {$this->id}: " . $e->getMessage(), [
+                'volunteer_email' => $this->volunteer->email,
+                'status' => $status,
+                'error_details' => $e->getTraceAsString()
+            ]);
         }
     }
 }

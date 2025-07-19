@@ -1,8 +1,8 @@
 @extends('layouts.organization')
 
-@section('title', 'Complete Organization Profile - MVMS')
+@section('title', '{{ $profile && $profile->is_complete ? "Edit" : "Complete" }} Organization Profile - MVMS')
 
-@section('page-title', 'Complete Your Organization Profile')
+@section('page-title', '{{ $profile && $profile->is_complete ? "Edit" : "Complete" }} Your Organization Profile')
 
 @section('content')
 <div class="container-fluid">
@@ -12,10 +12,10 @@
             <div class="card border-0 bg-gradient" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);">
                 <div class="card-body text-white p-4">
                     <h2 class="mb-2">
-                        <i class="bi bi-building me-2"></i>Complete Your Organization Profile
+                        <i class="bi bi-building me-2"></i>{{ $profile && $profile->is_complete ? 'Edit' : 'Complete' }} Your Organization Profile
                     </h2>
                     <p class="mb-0">
-                        Help volunteers find and connect with your organization by completing your profile.
+                        {{ $profile && $profile->is_complete ? 'Update your organization information to keep your profile current.' : 'Help volunteers find and connect with your organization by completing your profile.' }}
                     </p>
                     <div class="progress mt-3" style="height: 8px;">
                         <div class="progress-bar bg-white" role="progressbar" style="width: 0%" id="progressBar"></div>
@@ -58,8 +58,8 @@
                         <label for="org_name" class="form-label fw-bold">
                             Organization Name <span class="text-danger">*</span>
                         </label>
-                        <input type="text" class="form-control" id="org_name" name="org_name" 
-                               value="{{ Auth::user()->name }}" required>
+                        <input type="text" class="form-control" id="org_name" name="org_name"
+                               value="{{ old('org_name', $profile->org_name ?? Auth::user()->name) }}" required>
                         <div class="invalid-feedback"></div>
                     </div>
                     <div class="col-md-6 mb-3">
@@ -68,15 +68,15 @@
                         </label>
                         <select class="form-select" id="org_type" name="org_type" required>
                             <option value="">Select Organization Type</option>
-                            <option value="NGO">Non-Governmental Organization (NGO)</option>
-                            <option value="CBO">Community Based Organization (CBO)</option>
-                            <option value="FBO">Faith Based Organization (FBO)</option>
-                            <option value="Government">Government Agency</option>
-                            <option value="Private">Private Company</option>
-                            <option value="International">International Organization</option>
-                            <option value="Educational">Educational Institution</option>
-                            <option value="Healthcare">Healthcare Institution</option>
-                            <option value="Other">Other</option>
+                            <option value="NGO" {{ old('org_type', $profile->org_type ?? '') == 'NGO' ? 'selected' : '' }}>Non-Governmental Organization (NGO)</option>
+                            <option value="CBO" {{ old('org_type', $profile->org_type ?? '') == 'CBO' ? 'selected' : '' }}>Community Based Organization (CBO)</option>
+                            <option value="FBO" {{ old('org_type', $profile->org_type ?? '') == 'FBO' ? 'selected' : '' }}>Faith Based Organization (FBO)</option>
+                            <option value="Government" {{ old('org_type', $profile->org_type ?? '') == 'Government' ? 'selected' : '' }}>Government Agency</option>
+                            <option value="Private" {{ old('org_type', $profile->org_type ?? '') == 'Private' ? 'selected' : '' }}>Private Company</option>
+                            <option value="International" {{ old('org_type', $profile->org_type ?? '') == 'International' ? 'selected' : '' }}>International Organization</option>
+                            <option value="Educational" {{ old('org_type', $profile->org_type ?? '') == 'Educational' ? 'selected' : '' }}>Educational Institution</option>
+                            <option value="Healthcare" {{ old('org_type', $profile->org_type ?? '') == 'Healthcare' ? 'selected' : '' }}>Healthcare Institution</option>
+                            <option value="Other" {{ old('org_type', $profile->org_type ?? '') == 'Other' ? 'selected' : '' }}>Other</option>
                         </select>
                         <div class="invalid-feedback"></div>
                     </div>
@@ -86,21 +86,21 @@
                         </label>
                         <select class="form-select" id="sector" name="sector" required>
                             <option value="">Select Primary Sector</option>
-                            <option value="Education">Education</option>
-                            <option value="Health">Health & Medical</option>
-                            <option value="Environment">Environment & Conservation</option>
-                            <option value="Agriculture">Agriculture & Food Security</option>
-                            <option value="Water">Water & Sanitation</option>
-                            <option value="Community">Community Development</option>
-                            <option value="Youth">Youth Development</option>
-                            <option value="Women">Women Empowerment</option>
-                            <option value="Disability">Disability Support</option>
-                            <option value="Emergency">Emergency Response</option>
-                            <option value="Human Rights">Human Rights</option>
-                            <option value="Technology">Technology & Innovation</option>
-                            <option value="Arts">Arts & Culture</option>
-                            <option value="Sports">Sports & Recreation</option>
-                            <option value="Other">Other</option>
+                            <option value="Education" {{ old('sector', $profile->sector ?? '') == 'Education' ? 'selected' : '' }}>Education</option>
+                            <option value="Health" {{ old('sector', $profile->sector ?? '') == 'Health' ? 'selected' : '' }}>Health & Medical</option>
+                            <option value="Environment" {{ old('sector', $profile->sector ?? '') == 'Environment' ? 'selected' : '' }}>Environment & Conservation</option>
+                            <option value="Agriculture" {{ old('sector', $profile->sector ?? '') == 'Agriculture' ? 'selected' : '' }}>Agriculture & Food Security</option>
+                            <option value="Water" {{ old('sector', $profile->sector ?? '') == 'Water' ? 'selected' : '' }}>Water & Sanitation</option>
+                            <option value="Community" {{ old('sector', $profile->sector ?? '') == 'Community' ? 'selected' : '' }}>Community Development</option>
+                            <option value="Youth" {{ old('sector', $profile->sector ?? '') == 'Youth' ? 'selected' : '' }}>Youth Development</option>
+                            <option value="Women" {{ old('sector', $profile->sector ?? '') == 'Women' ? 'selected' : '' }}>Women Empowerment</option>
+                            <option value="Disability" {{ old('sector', $profile->sector ?? '') == 'Disability' ? 'selected' : '' }}>Disability Support</option>
+                            <option value="Emergency" {{ old('sector', $profile->sector ?? '') == 'Emergency' ? 'selected' : '' }}>Emergency Response</option>
+                            <option value="Human Rights" {{ old('sector', $profile->sector ?? '') == 'Human Rights' ? 'selected' : '' }}>Human Rights</option>
+                            <option value="Technology" {{ old('sector', $profile->sector ?? '') == 'Technology' ? 'selected' : '' }}>Technology & Innovation</option>
+                            <option value="Arts" {{ old('sector', $profile->sector ?? '') == 'Arts' ? 'selected' : '' }}>Arts & Culture</option>
+                            <option value="Sports" {{ old('sector', $profile->sector ?? '') == 'Sports' ? 'selected' : '' }}>Sports & Recreation</option>
+                            <option value="Other" {{ old('sector', $profile->sector ?? '') == 'Other' ? 'selected' : '' }}>Other</option>
                         </select>
                         <div class="invalid-feedback"></div>
                     </div>
@@ -108,15 +108,17 @@
                         <label for="established_date" class="form-label fw-bold">
                             Established Date
                         </label>
-                        <input type="date" class="form-control" id="established_date" name="established_date" max="{{ date('Y-m-d', strtotime('-1 day')) }}">
+                        <input type="date" class="form-control" id="established_date" name="established_date"
+                               value="{{ old('established_date', $profile->established_date ? $profile->established_date->format('Y-m-d') : '') }}"
+                               max="{{ date('Y-m-d', strtotime('-1 day')) }}">
                         <div class="form-text">Date must be before today</div>
                     </div>
                     <div class="col-12 mb-3">
                         <label for="description" class="form-label fw-bold">
                             Organization Description <span class="text-danger">*</span>
                         </label>
-                        <textarea class="form-control" id="description" name="description" rows="4" 
-                                  placeholder="Describe your organization, its purpose, and activities..." required></textarea>
+                        <textarea class="form-control" id="description" name="description" rows="4"
+                                  placeholder="Describe your organization, its purpose, and activities..." required>{{ old('description', $profile->description ?? '') }}</textarea>
                         <div class="form-text">Minimum 50 characters</div>
                         <div class="invalid-feedback"></div>
                     </div>
@@ -124,8 +126,8 @@
                         <label for="mission" class="form-label fw-bold">
                             Mission Statement <span class="text-danger">*</span>
                         </label>
-                        <textarea class="form-control" id="mission" name="mission" rows="3" 
-                                  placeholder="Your organization's mission..." required></textarea>
+                        <textarea class="form-control" id="mission" name="mission" rows="3"
+                                  placeholder="Your organization's mission..." required>{{ old('mission', $profile->mission ?? '') }}</textarea>
                         <div class="invalid-feedback"></div>
                     </div>
                     <div class="col-md-6 mb-3">
@@ -254,15 +256,16 @@
                         <label for="email" class="form-label fw-bold">
                             Email Address <span class="text-danger">*</span>
                         </label>
-                        <input type="email" class="form-control" id="email" name="email" 
-                               value="{{ Auth::user()->email }}" required>
+                        <input type="email" class="form-control" id="email" name="email"
+                               value="{{ old('email', $profile->email ?? Auth::user()->email) }}" required>
                         <div class="invalid-feedback"></div>
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="phone" class="form-label fw-bold">
                             Phone Number <span class="text-danger">*</span>
                         </label>
-                        <input type="tel" class="form-control" id="phone" name="phone" 
+                        <input type="tel" class="form-control" id="phone" name="phone"
+                               value="{{ old('phone', $profile->phone ?? '') }}"
                                placeholder="+265 123 456 789" required>
                         <div class="invalid-feedback"></div>
                     </div>

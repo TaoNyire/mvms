@@ -151,6 +151,14 @@ class Opportunity extends Model
     }
 
     /**
+     * Relationship: Opportunity has many Tasks
+     */
+    public function tasks(): HasMany
+    {
+        return $this->hasMany(Task::class);
+    }
+
+    /**
      * Check if opportunity is currently active
      */
     public function getIsActiveAttribute(): bool

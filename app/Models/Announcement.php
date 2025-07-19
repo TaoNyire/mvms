@@ -158,6 +158,27 @@ class Announcement extends Model
         return $query->where(function($q) use ($audience) {
             $q->where('audience', 'all')
               ->orWhere('audience', $audience);
+
+            // If user is a volunteer, also show announcements from organizations they work with
+            if ($audience === 'volunteers') {
+                $user = auth()->user();
+                if ($user && $user->hasRole('volunteer')) {
+                    // Get organization IDs where this volunteer has accepted applications
+                    $organizationIds = \DB::table('applications')
+                        ->join('opportunities', 'applications.opportunity_id', '=', 'opportunities.id')
+                        ->where('applications.volunteer_id', $user->id)
+                        ->where('applications.status', 'accepted')
+                        ->pluck('opportunities.organization_id')
+                        ->unique();
+
+                    if ($organizationIds->isNotEmpty()) {
+                        $q->orWhere(function($subQ) use ($organizationIds) {
+                            $subQ->where('audience', 'my_volunteers')
+                                 ->whereIn('created_by', $organizationIds);
+                        });
+                    }
+                }
+            }
         });
     }
 
@@ -312,6 +333,16 @@ class Announcement extends Model
         switch ($this->audience) {
             case 'volunteers':
                 $query->whereHas('roles', fn($q) => $q->where('name', 'volunteer'));
+                break;
+            case 'my_volunteers':
+                // Get volunteers who have accepted applications with this organization
+                $organizationId = $this->created_by;
+                $query->whereHas('roles', fn($q) => $q->where('name', 'volunteer'))
+                      ->whereHas('applications', function($q) use ($organizationId) {
+                          $q->whereHas('opportunity', fn($oq) => $oq->where('organization_id', $organizationId))
+                            ->where('status', 'accepted')
+                            ->where('confirmation_status', 'confirmed');
+                      });
                 break;
             case 'organizations':
                 $query->whereHas('roles', fn($q) => $q->where('name', 'organization'));

@@ -19,7 +19,7 @@
                             <p class="mb-0 opacity-90">
                                 <i class="bi bi-shield-check me-2"></i>
                                 Profile Status: 
-                                @if($profile->is_complete)
+                                @if($profile->completion_percentage >= 60)
                                     <span class="badge bg-light text-success">Complete</span>
                                 @else
                                     <span class="badge bg-warning text-dark">{{ $profile->completion_percentage }}% Complete</span>
@@ -45,7 +45,7 @@
         </div>
     </div>
 
-    @if(!$profile->is_complete)
+    @if($profile->completion_percentage < 60)
     <!-- Completion Warning -->
     <div class="row mb-4">
         <div class="col-12">

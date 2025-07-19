@@ -148,28 +148,32 @@ class VolunteerProfile extends Model
      */
     public function getCompletionPercentageAttribute()
     {
-        $requiredFields = [
-            'full_name',
-            'phone',
-            'physical_address',
-            'district',
-            'region',
-            'bio',
-            'skills',
-            'available_days',
-            'availability_type',
-            'education_level',
-            'motivation'
-        ];
+        try {
+            $requiredFields = [
+                'full_name',
+                'phone',
+                'physical_address',
+                'district',
+                'region',
+                'bio',
+                'skills',
+                'available_days',
+                'availability_type',
+                'education_level',
+                'motivation'
+            ];
 
-        $filledFields = 0;
-        foreach ($requiredFields as $field) {
-            if (!empty($this->$field)) {
-                $filledFields++;
+            $filledFields = 0;
+            foreach ($requiredFields as $field) {
+                if (!empty($this->$field)) {
+                    $filledFields++;
+                }
             }
-        }
 
-        return round(($filledFields / count($requiredFields)) * 100);
+            return round(($filledFields / count($requiredFields)) * 100);
+        } catch (\Exception $e) {
+            return 0; // If there's an error, return 0% completion
+        }
     }
 
     /**
@@ -177,7 +181,11 @@ class VolunteerProfile extends Model
      */
     public function getIsProfileCompleteAttribute()
     {
-        return $this->completion_percentage >= 80; // 80% completion required
+        try {
+            return $this->completion_percentage >= 60; // 60% completion required
+        } catch (\Exception $e) {
+            return false; // If there's an error calculating completion, consider it incomplete
+        }
     }
 
     /**

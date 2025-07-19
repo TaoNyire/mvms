@@ -16,13 +16,15 @@ class TaskAssignmentService
     public function autoAssignTasksToVolunteer(Application $application)
     {
         try {
-            // Get all active tasks for this opportunity
+            // Get all active tasks for this opportunity that allow auto-assignment
             $activeTasks = $application->opportunity->tasks()
                 ->where('status', 'active')
+                ->where('assignment_type', 'auto')
+                ->whereColumn('volunteers_assigned', '<', 'volunteers_needed')
                 ->get();
 
             if ($activeTasks->isEmpty()) {
-                Log::info("No active tasks found for opportunity", [
+                Log::info("No active auto-assignment tasks found for opportunity", [
                     'opportunity_id' => $application->opportunity_id,
                     'application_id' => $application->id
                 ]);
@@ -195,7 +197,6 @@ class TaskAssignmentService
         try {
             $confirmedApplications = Application::where('opportunity_id', $opportunityId)
                 ->where('status', 'accepted')
-                ->where('confirmation_status', 'confirmed')
                 ->whereNull('task_id')
                 ->get();
 
@@ -229,12 +230,10 @@ class TaskAssignmentService
     {
         $totalVolunteers = Application::where('opportunity_id', $opportunityId)
             ->where('status', 'accepted')
-            ->where('confirmation_status', 'confirmed')
             ->count();
 
         $assignedVolunteers = Application::where('opportunity_id', $opportunityId)
             ->where('status', 'accepted')
-            ->where('confirmation_status', 'confirmed')
             ->whereNotNull('task_id')
             ->count();
 
@@ -246,5 +245,155 @@ class TaskAssignmentService
             'unassigned_volunteers' => $unassignedVolunteers,
             'assignment_percentage' => $totalVolunteers > 0 ? round(($assignedVolunteers / $totalVolunteers) * 100, 2) : 0
         ];
+    }
+
+    /**
+     * Auto-assign volunteers to a specific task based on skills and availability
+     */
+    public function autoAssignVolunteersToTask(Task $task)
+    {
+        try {
+            // Get accepted volunteers for this opportunity
+            $acceptedVolunteers = User::whereHas('applications', function($query) use ($task) {
+                $query->where('opportunity_id', $task->opportunity_id)
+                      ->where('status', 'accepted');
+            })->with('volunteerProfile')->get();
+
+            if ($acceptedVolunteers->isEmpty()) {
+                Log::info("No accepted volunteers found for task auto-assignment", [
+                    'task_id' => $task->id,
+                    'opportunity_id' => $task->opportunity_id
+                ]);
+                return false;
+            }
+
+            // Calculate volunteer scores and sort by best match
+            $volunteerScores = [];
+            foreach ($acceptedVolunteers as $volunteer) {
+                $score = $this->calculateVolunteerTaskScore($volunteer, $task);
+                if ($score > 0) {
+                    $volunteerScores[] = [
+                        'volunteer' => $volunteer,
+                        'score' => $score
+                    ];
+                }
+            }
+
+            // Sort by score descending
+            usort($volunteerScores, function($a, $b) {
+                return $b['score'] <=> $a['score'];
+            });
+
+            // Assign top volunteers up to the needed count
+            $assignedCount = 0;
+            $spotsNeeded = $task->volunteers_needed - $task->volunteers_assigned;
+
+            foreach ($volunteerScores as $volunteerData) {
+                if ($assignedCount >= $spotsNeeded) {
+                    break;
+                }
+
+                $volunteer = $volunteerData['volunteer'];
+
+                // Check for conflicts
+                $conflicts = $task->checkSchedulingConflicts($volunteer);
+                if (!empty($conflicts)) {
+                    Log::info("Skipping volunteer due to scheduling conflicts", [
+                        'volunteer_id' => $volunteer->id,
+                        'task_id' => $task->id,
+                        'conflicts' => $conflicts
+                    ]);
+                    continue;
+                }
+
+                // Assign volunteer
+                $assignment = $task->assignVolunteer($volunteer, $task->creator, [
+                    'method' => 'auto_assigned',
+                    'notes' => "Auto-assigned based on skills and availability (Score: {$volunteerData['score']})"
+                ]);
+
+                // Send notification
+                $volunteer->notify(new \App\Notifications\VolunteerAssignedToTaskNotification($assignment));
+
+                $assignedCount++;
+
+                Log::info("Auto-assigned volunteer to task", [
+                    'volunteer_id' => $volunteer->id,
+                    'task_id' => $task->id,
+                    'assignment_id' => $assignment->id,
+                    'score' => $volunteerData['score']
+                ]);
+            }
+
+            return $assignedCount > 0;
+
+        } catch (\Exception $e) {
+            Log::error("Failed to auto-assign volunteers to task", [
+                'task_id' => $task->id,
+                'error' => $e->getMessage()
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Calculate volunteer-task compatibility score
+     */
+    private function calculateVolunteerTaskScore(User $volunteer, Task $task): int
+    {
+        $score = 0;
+        $maxScore = 100;
+
+        $volunteerProfile = $volunteer->volunteerProfile;
+        if (!$volunteerProfile) {
+            return 0;
+        }
+
+        // Skills match (40 points)
+        if ($task->required_skills && $volunteerProfile->skills) {
+            $volunteerSkills = collect($volunteerProfile->skills);
+            $requiredSkills = collect($task->required_skills);
+
+            $matchingSkills = $volunteerSkills->intersect($requiredSkills);
+            $skillScore = ($matchingSkills->count() / $requiredSkills->count()) * 40;
+            $score += $skillScore;
+        }
+
+        // Location preference (20 points)
+        if ($task->location_type === 'remote' && $volunteerProfile->can_work_remotely) {
+            $score += 20;
+        } elseif ($task->location_type === 'on_site') {
+            if ($volunteerProfile->district === $task->opportunity->district) {
+                $score += 20;
+            } elseif ($volunteerProfile->can_travel) {
+                $score += 10;
+            }
+        }
+
+        // Availability match (20 points)
+        if ($volunteerProfile->available_days) {
+            $taskDay = strtolower($task->start_datetime->format('l'));
+            if (in_array($taskDay, $volunteerProfile->available_days)) {
+                $score += 20;
+            }
+        }
+
+        // Experience level (10 points)
+        if ($volunteerProfile->experience_level) {
+            $experienceScore = match($volunteerProfile->experience_level) {
+                'expert' => 10,
+                'intermediate' => 8,
+                'beginner' => 5,
+                default => 0
+            };
+            $score += $experienceScore;
+        }
+
+        // Priority bonus (10 points for urgent tasks)
+        if ($task->priority === 'urgent') {
+            $score += 10;
+        }
+
+        return min($score, $maxScore);
     }
 }

@@ -253,11 +253,18 @@ class Conversation extends Model
      */
     public static function createDirect(User $user1, User $user2, $relatedModel = null): self
     {
-        // Check if conversation already exists
+        // Check if conversation already exists using a more compatible approach
+        $participantIds = [$user1->id, $user2->id];
+        sort($participantIds); // Ensure consistent ordering
+
         $existing = static::where('type', 'direct')
             ->where('participant_count', 2)
-            ->whereJsonContains('participant_ids', $user1->id)
-            ->whereJsonContains('participant_ids', $user2->id)
+            ->get()
+            ->filter(function ($conversation) use ($participantIds) {
+                $conversationParticipants = $conversation->participant_ids;
+                sort($conversationParticipants);
+                return $conversationParticipants === $participantIds;
+            })
             ->first();
 
         if ($existing) {
@@ -267,7 +274,7 @@ class Conversation extends Model
         return static::create([
             'type' => 'direct',
             'created_by' => $user1->id,
-            'participant_ids' => [$user1->id, $user2->id],
+            'participant_ids' => $participantIds,
             'participant_count' => 2,
             'related_type' => $relatedModel ? class_basename($relatedModel) : null,
             'related_id' => $relatedModel ? $relatedModel->id : null,

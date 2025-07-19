@@ -90,6 +90,18 @@
                                                     {{ ucfirst($announcement->priority) }}
                                                 </span>
                                                 <span class="badge bg-secondary me-2">{{ ucfirst($announcement->type) }}</span>
+
+                                                @if($announcement->audience === 'my_volunteers')
+                                                <span class="badge bg-info me-2">
+                                                    <i class="bi bi-people-fill me-1"></i>
+                                                    @if(auth()->user()->hasRole('volunteer'))
+                                                        For You
+                                                    @else
+                                                        Your Volunteers
+                                                    @endif
+                                                </span>
+                                                @endif
+
                                                 <small class="text-muted">
                                                     by {{ $announcement->creator->name }} • {{ $announcement->time_ago }}
                                                 </small>
@@ -145,9 +157,11 @@
                 @endforeach
                 
                 <!-- Pagination -->
-                <div class="d-flex justify-content-center">
-                    {{ $announcements->links() }}
-                </div>
+                @if($announcements->hasPages())
+                    <div class="d-flex justify-content-center mt-4">
+                        {{ $announcements->links() }}
+                    </div>
+                @endif
             @else
                 <div class="card">
                     <div class="card-body text-center py-5">

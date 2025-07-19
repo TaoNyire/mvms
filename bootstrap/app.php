@@ -5,6 +5,8 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\RoleMiddleware; // ← import your middleware
 use App\Http\Middleware\WebRoleMiddleware;
+use App\Http\Middleware\VerifiedUserRole;
+use App\Http\Middleware\ExcludeAdmin;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -20,6 +22,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'web.role' => WebRoleMiddleware::class,
             'volunteer.profile.complete' => \App\Http\Middleware\EnsureVolunteerProfileComplete::class,
             'organization.profile.complete' => \App\Http\Middleware\EnsureOrganizationProfileComplete::class,
+            'verified.user.role' => VerifiedUserRole::class,
+            'exclude.admin' => ExcludeAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

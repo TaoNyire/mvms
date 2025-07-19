@@ -32,22 +32,22 @@
             <ul class="nav nav-tabs" id="notificationTabs" role="tablist">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link active" id="all-tab" data-bs-toggle="tab" data-bs-target="#all" type="button" role="tab">
-                        All <span class="badge bg-secondary ms-1">{{ $counts['all'] }}</span>
+                        <span class="text-black">All</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="unread-tab" data-bs-toggle="tab" data-bs-target="#unread" type="button" role="tab">
-                        Unread <span class="badge bg-primary ms-1">{{ $counts['unread'] }}</span>
+                        <span class="text-black">Unread</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="read-tab" data-bs-toggle="tab" data-bs-target="#read" type="button" role="tab">
-                        Read <span class="badge bg-success ms-1">{{ $counts['read'] }}</span>
+                        <span class="text-black">Read</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="archived-tab" data-bs-toggle="tab" data-bs-target="#archived" type="button" role="tab">
-                        Archived <span class="badge bg-info ms-1">{{ $counts['archived'] }}</span>
+                        <span class="text-black">Archived</span>
                     </button>
                 </li>
             </ul>
@@ -140,9 +140,11 @@
                         </div>
                         
                         <!-- Pagination -->
-                        <div class="d-flex justify-content-center p-3">
-                            {{ $notifications->links() }}
-                        </div>
+                        @if($notifications->hasPages())
+                            <div class="d-flex justify-content-center p-3">
+                                {{ $notifications->links() }}
+                            </div>
+                        @endif
                     @else
                         <div class="text-center py-5">
                             <i class="bi bi-bell-slash" style="font-size: 4rem; color: #dee2e6;"></i>
